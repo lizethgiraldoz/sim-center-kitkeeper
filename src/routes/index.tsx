@@ -21,7 +21,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Row = Record<string, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = any;
 const fmt = (d: string) => new Date(d).toLocaleString("es-CO", { timeZone: "America/Bogota" });
 
 function Index() {
