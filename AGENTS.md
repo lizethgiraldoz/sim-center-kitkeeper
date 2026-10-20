@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Reservation business rules (overlap blocking, 19:00 limit, approval, external-exit form, audit) live in database functions/triggers and are called via RPC; keep the UI thin so rules cannot be bypassed.
