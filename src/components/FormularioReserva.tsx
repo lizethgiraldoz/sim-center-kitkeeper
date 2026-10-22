@@ -132,21 +132,21 @@ export function ListaChequeo() {
   const [rows, setRows] = useState<Row[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => { supabase.from("activity_checklists").select("*").order("orden").then(({ data }) => setRows(data ?? [])); }, []);
-  const dias = [...new Set(rows.map((r) => r.dia))];
+  const modulos = [...new Set(rows.map((r) => r.modulo))];
   return (
     <Card>
-      <CardHeader><CardTitle>Lista de chequeo Paciente Crítico 2026</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Lista de chequeo por actividad / tipo de simulación</CardTitle></CardHeader>
       <CardContent className="space-y-2 text-sm">
-        {dias.map((dia) => {
-          const rs = rows.filter((r) => r.dia === dia);
-          const excl = rs[0]?.excluido;
+        {modulos.map((mod) => {
+          const rs = rows.filter((r) => r.modulo === mod);
+          const excl = rs.every((r) => r.excluido);
           return (
-            <div key={dia} className="border rounded-md">
-              <button className="w-full flex justify-between px-3 py-2 text-left" onClick={() => setOpen(open === dia ? null : dia)}>
-                <span><strong>{dia}</strong> · {rs[0]?.modulo}</span>
+            <div key={mod} className="border rounded-md">
+              <button className="w-full flex justify-between px-3 py-2 text-left" onClick={() => setOpen(open === mod ? null : mod)}>
+                <span><strong>{mod}</strong></span>
                 <span className={excl ? "text-destructive" : "text-muted-foreground"}>{excl ? "Excluido (REVISAR)" : `${rs.length} ítems`}</span>
               </button>
-              {open === dia && (
+              {open === mod && (
                 <div className="px-3 pb-2 space-y-2">
                   {[...new Set(rs.map((r) => r.estacion))].map((e) => (
                     <div key={e}>
