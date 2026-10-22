@@ -35,6 +35,56 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_checklists: {
+        Row: {
+          activity_id: string | null
+          cantidad: number | null
+          cantidad_texto: string | null
+          dia: string
+          estacion: string | null
+          excluido: boolean
+          id: string
+          item: string
+          modulo: string
+          motivo_exclusion: string | null
+          orden: number
+        }
+        Insert: {
+          activity_id?: string | null
+          cantidad?: number | null
+          cantidad_texto?: string | null
+          dia: string
+          estacion?: string | null
+          excluido?: boolean
+          id?: string
+          item: string
+          modulo: string
+          motivo_exclusion?: string | null
+          orden?: number
+        }
+        Update: {
+          activity_id?: string | null
+          cantidad?: number | null
+          cantidad_texto?: string | null
+          dia?: string
+          estacion?: string | null
+          excluido?: boolean
+          id?: string
+          item?: string
+          modulo?: string
+          motivo_exclusion?: string | null
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_checklists_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_resource_templates: {
         Row: {
           activity_id: string
@@ -215,18 +265,21 @@ export type Database = {
       }
       reservation_resources: {
         Row: {
+          cantidad_aprobada: number | null
           id: string
           quantity: number
           reservation_id: string
           resource_id: string
         }
         Insert: {
+          cantidad_aprobada?: number | null
           id?: string
           quantity: number
           reservation_id: string
           resource_id: string
         }
         Update: {
+          cantidad_aprobada?: number | null
           id?: string
           quantity?: number
           reservation_id?: string
@@ -252,61 +305,103 @@ export type Database = {
       reservations: {
         Row: {
           activity_id: string | null
+          aulas_moviles_subtipo:
+            | Database["public"]["Enums"]["am_subtipo"]
+            | null
           cancelled_at: string | null
           cancelled_by: string | null
           created_at: string
           created_by: string | null
+          docente_responsable_documento: string | null
+          docente_responsable_nombre: string | null
           ends_at: string
+          facultad_entidad: string | null
+          fecha_solicitud: string
           id: string
           leaves_faculty: boolean
+          lugar_tipo: Database["public"]["Enums"]["lugar_tipo"]
           notes: string | null
           participants: number
+          programa: string | null
           rejection_reason: string | null
+          requiere_ingreso_30min_antes: boolean
           reviewer_id: string | null
+          semestre: number | null
+          solicitante_documento: string | null
+          solicitante_nombre: string | null
           space_id: string
           starts_at: string
           status: Database["public"]["Enums"]["reservation_status"]
           teacher_id: string
+          telefono_contacto: string | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           activity_id?: string | null
+          aulas_moviles_subtipo?:
+            | Database["public"]["Enums"]["am_subtipo"]
+            | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
+          docente_responsable_documento?: string | null
+          docente_responsable_nombre?: string | null
           ends_at: string
+          facultad_entidad?: string | null
+          fecha_solicitud?: string
           id?: string
           leaves_faculty?: boolean
+          lugar_tipo?: Database["public"]["Enums"]["lugar_tipo"]
           notes?: string | null
           participants?: number
+          programa?: string | null
           rejection_reason?: string | null
+          requiere_ingreso_30min_antes?: boolean
           reviewer_id?: string | null
+          semestre?: number | null
+          solicitante_documento?: string | null
+          solicitante_nombre?: string | null
           space_id: string
           starts_at: string
           status?: Database["public"]["Enums"]["reservation_status"]
           teacher_id: string
+          telefono_contacto?: string | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           activity_id?: string | null
+          aulas_moviles_subtipo?:
+            | Database["public"]["Enums"]["am_subtipo"]
+            | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
+          docente_responsable_documento?: string | null
+          docente_responsable_nombre?: string | null
           ends_at?: string
+          facultad_entidad?: string | null
+          fecha_solicitud?: string
           id?: string
           leaves_faculty?: boolean
+          lugar_tipo?: Database["public"]["Enums"]["lugar_tipo"]
           notes?: string | null
           participants?: number
+          programa?: string | null
           rejection_reason?: string | null
+          requiere_ingreso_30min_antes?: boolean
           reviewer_id?: string | null
+          semestre?: number | null
+          solicitante_documento?: string | null
+          solicitante_nombre?: string | null
           space_id?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["reservation_status"]
           teacher_id?: string
+          telefono_contacto?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -549,6 +644,7 @@ export type Database = {
         }
         Returns: string
       }
+      crear_solicitud_formulario: { Args: { _f: Json }; Returns: Json }
       dashboard_bloqueos: {
         Args: never
         Returns: {
@@ -577,6 +673,15 @@ export type Database = {
         Args: { _reservation_id: string }
         Returns: boolean
       }
+      formulario_plantilla: {
+        Args: { _activity_id: string }
+        Returns: {
+          cantidad: number
+          categoria: Database["public"]["Enums"]["resource_kind"]
+          detalle: string
+          resource_id: string
+        }[]
+      }
       generar_alertas_proximas: { Args: never; Returns: number }
       has_role: {
         Args: {
@@ -593,6 +698,15 @@ export type Database = {
         Args: { _id: string; _reason: string }
         Returns: undefined
       }
+      reporte_uso_programa_docente: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          docente: string
+          horas: number
+          programa: string
+          reservas: number
+        }[]
+      }
       reporte_utilizacion: {
         Args: { _from: string; _to: string }
         Returns: {
@@ -605,6 +719,7 @@ export type Database = {
       }
     }
     Enums: {
+      am_subtipo: "AOE" | "TA" | "PR"
       app_role: "DOCENTE" | "ADMINISTRADOR_REVISOR"
       asset_status:
         | "DISPONIBLE"
@@ -612,6 +727,7 @@ export type Database = {
         | "EN_MANTENIMIENTO"
         | "FUERA_DE_SERVICIO"
       kit_status: "COMPLETO" | "SEPARADO" | "INCOMPLETO" | "EN_ESTERILIZACION"
+      lugar_tipo: "LDS" | "CEAPH" | "LL" | "AM"
       reservation_status:
         | "SOLICITADA"
         | "APROBADA"
@@ -747,6 +863,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      am_subtipo: ["AOE", "TA", "PR"],
       app_role: ["DOCENTE", "ADMINISTRADOR_REVISOR"],
       asset_status: [
         "DISPONIBLE",
@@ -755,6 +872,7 @@ export const Constants = {
         "FUERA_DE_SERVICIO",
       ],
       kit_status: ["COMPLETO", "SEPARADO", "INCOMPLETO", "EN_ESTERILIZACION"],
+      lugar_tipo: ["LDS", "CEAPH", "LL", "AM"],
       reservation_status: [
         "SOLICITADA",
         "APROBADA",
