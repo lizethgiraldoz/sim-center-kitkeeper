@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FormularioReserva, ListaChequeo, FormatoImprimible } from "@/components/FormularioReserva";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,7 +40,7 @@ function Index() {
       <header className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-primary">Centro de Simulación · Medicina UdeA</h1>
-          <p className="text-sm text-muted-foreground">Consola mínima para probar el backend de reservas</p>
+          <p className="text-sm text-muted-foreground">Solicitud de reserva · Formato F-CS-01</p>
         </div>
         {session && <Button variant="outline" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>}
       </header>
@@ -80,12 +81,9 @@ function Console({ userId }: { userId: string }) {
   const [spaces, setSpaces] = useState<Row[]>([]);
   const [activities, setActivities] = useState<Row[]>([]);
   const [reservations, setReservations] = useState<Row[]>([]);
-  const [avail, setAvail] = useState<Row[]>([]);
   const [blocks, setBlocks] = useState<Row[]>([]);
   const [kits, setKits] = useState<Row[]>([]);
   const [msg, setMsg] = useState("");
-  const today = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const [f, setF] = useState({ space: "", activity: "", date: today, start: "08:00", end: "10:00", participants: 10, leaves: false });
 
   const load = useCallback(async () => {
     const [r, s, a, rs, b, k] = await Promise.all([
@@ -99,11 +97,9 @@ function Console({ userId }: { userId: string }) {
     setIsAdmin(!!r.data?.some((x) => x.role === "ADMINISTRADOR_REVISOR"));
     setSpaces(s.data ?? []); setActivities(a.data ?? []); setReservations(rs.data ?? []);
     setBlocks(b.data ?? []); setKits(k.data ?? []);
-    setF((p) => ({ ...p, space: p.space || s.data?.[0]?.id || "", activity: p.activity || a.data?.[0]?.id || "" }));
   }, [userId]);
   useEffect(() => { load(); }, [load]);
 
-  const iso = (t: string) => new Date(`${f.date}T${t}:00-05:00`).toISOString();
   const run = async (p: PromiseLike<{ error: any }>, ok: string) => {
     const { error } = await p; setMsg(error ? `Error: ${error.message}` : ok); await load();
   };
@@ -115,31 +111,7 @@ function Console({ userId }: { userId: string }) {
         {msg && <span className={msg.startsWith("Error") ? "text-destructive" : "text-primary"}>{msg}</span>}
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Nueva solicitud (POST /api/reservas)</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <select className="border rounded-md px-2 h-9 bg-background" value={f.space} onChange={(e) => setF({ ...f, space: e.target.value })}>
-            {spaces.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
-          </select>
-          <select className="border rounded-md px-2 h-9 bg-background" value={f.activity} onChange={(e) => setF({ ...f, activity: e.target.value })}>
-            {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <Input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
-          <Input type="number" value={f.participants} onChange={(e) => setF({ ...f, participants: +e.target.value })} />
-          <Input type="time" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} />
-          <Input type="time" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} />
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.leaves} onChange={(e) => setF({ ...f, leaves: e.target.checked })} /> Sale de la Facultad</label>
-          <div className="flex gap-2">
-            <Button onClick={() => run(supabase.rpc("crear_reserva", { _space_id: f.space, _activity_id: f.activity, _starts_at: iso(f.start), _ends_at: iso(f.end), _participants: f.participants, _leaves_faculty: f.leaves }), "Solicitud creada")}>Solicitar</Button>
-            <Button variant="outline" onClick={async () => { const { data, error } = await supabase.rpc("disponibilidad", { _starts_at: iso(f.start), _ends_at: iso(f.end) }); setAvail(data ?? []); setMsg(error ? `Error: ${error.message}` : "Disponibilidad consultada"); }}>Disponibilidad</Button>
-          </div>
-        </CardContent>
-        {avail.length > 0 && (
-          <CardContent className="grid gap-1 text-sm md:grid-cols-2">
-            {avail.map((a) => <div key={a.id} className="flex justify-between border-b py-1"><span>{a.kind === "ESPACIO" ? "🏥" : "🧰"} {a.name}</span><span className={a.available > 0 ? "text-primary" : "text-destructive"}>{a.available}/{a.total} libres</span></div>)}
-          </CardContent>
-        )}
-      </Card>
+      <FormularioReserva spaces={spaces} activities={activities} onDone={async (m) => { setMsg(m); await load(); }} />
 
       <Card>
         <CardHeader><CardTitle>Reservas</CardTitle></CardHeader>
@@ -164,6 +136,7 @@ function Console({ userId }: { userId: string }) {
           </CardContent>
         </Card>
       </div>
+      <ListaChequeo />
     </div>
   );
 }
@@ -172,12 +145,16 @@ function ReservationRow({ r, isAdmin, spaces, run }: { r: Row; isAdmin: boolean;
   const form = r.external_borrow_forms?.[0] ?? r.external_borrow_forms;
   const [ext, setExt] = useState({ responsible_name: "", responsible_document: "", responsible_phone: "", destination: "", purpose: "" });
   const [newSpace, setNewSpace] = useState("");
+  const [print, setPrint] = useState(false);
   return (
     <div className="border rounded-md p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={r.status === "APROBADA" ? "default" : "secondary"}>{r.status}</Badge>
         <strong>{r.activities?.name}</strong> · {r.spaces?.name} · {fmt(r.starts_at)} → {new Date(r.ends_at).toLocaleTimeString("es-CO", { timeZone: "America/Bogota" })}
         {r.leaves_faculty && <Badge variant="outline">Salida externa</Badge>}
+        {r.requiere_ingreso_30min_antes && <Badge variant="outline">Llegar 30 min antes</Badge>}
+        <Button size="sm" variant="link" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
+        {print && <FormatoImprimible r={r} onClose={() => setPrint(false)} />}
       </div>
       <p className="text-xs text-muted-foreground">{r.reservation_resources?.map((x: Row) => `${x.resources?.name} x${x.quantity}`).join(" · ")}</p>
       {r.rejection_reason && <p className="text-xs text-destructive">Motivo: {r.rejection_reason}</p>}
