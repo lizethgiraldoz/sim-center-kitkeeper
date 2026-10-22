@@ -69,7 +69,7 @@
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.45 0.12 150);
+  --primary: oklch(0.46 0.11 152);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
@@ -140,5 +140,13 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: "Times New Roman", Times, serif;
+  }
+  h1, h2, h3, h4, [data-slot="card-title"] {
+    font-family: "Roboto Slab", "Roboto", serif;
+    font-weight: 700;
+  }
+  input, select, textarea, button, label {
+    font-family: "Roboto", sans-serif;
   }
 }

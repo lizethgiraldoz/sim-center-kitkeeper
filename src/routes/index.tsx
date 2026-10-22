@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FormularioReserva, ListaChequeo, FormatoImprimible } from "@/components/FormularioReserva";
+import logo from "@/assets/logo-udea.png.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,10 +38,13 @@ function Index() {
   if (!ready) return null;
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <header className="flex items-center justify-between border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Centro de Simulación · Medicina UdeA</h1>
-          <p className="text-sm text-muted-foreground">Solicitud de reserva · Formato F-CS-01</p>
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b-4 border-primary pb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <img src={logo.url} alt="Universidad de Antioquia" className="h-14 w-auto" />
+          <div className="border-l pl-4">
+            <h1 className="text-xl text-primary">Centro de Simulación</h1>
+            <p className="text-sm italic text-muted-foreground">Facultad de Medicina · Formato F-CS-01</p>
+          </div>
         </div>
         {session && <Button variant="outline" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>}
       </header>
