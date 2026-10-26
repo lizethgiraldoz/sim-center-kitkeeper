@@ -10,33 +10,121 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedDisponibilidadRouteImport } from './routes/_authenticated/disponibilidad'
+import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
+import { Route as AuthenticatedMisSolicitudesRouteImport } from './routes/_authenticated/mis-solicitudes'
+import { Route as AuthenticatedNuevaReservaRouteImport } from './routes/_authenticated/nueva-reserva'
+import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
+import { Route as AuthenticatedSolicitudesRouteImport } from './routes/_authenticated/solicitudes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDisponibilidadRoute =
+  AuthenticatedDisponibilidadRouteImport.update({
+    id: '/disponibilidad',
+    path: '/disponibilidad',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInventarioRoute = AuthenticatedInventarioRouteImport.update({
+  id: '/inventario',
+  path: '/inventario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMisSolicitudesRoute =
+  AuthenticatedMisSolicitudesRouteImport.update({
+    id: '/mis-solicitudes',
+    path: '/mis-solicitudes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNuevaReservaRoute =
+  AuthenticatedNuevaReservaRouteImport.update({
+    id: '/nueva-reserva',
+    path: '/nueva-reserva',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSolicitudesRoute =
+  AuthenticatedSolicitudesRouteImport.update({
+    id: '/solicitudes',
+    path: '/solicitudes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/inventario': typeof AuthenticatedInventarioRoute
+  '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
+  '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/reportes': typeof AuthenticatedReportesRoute
+  '/solicitudes': typeof AuthenticatedSolicitudesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/inventario': typeof AuthenticatedInventarioRoute
+  '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
+  '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/reportes': typeof AuthenticatedReportesRoute
+  '/solicitudes': typeof AuthenticatedSolicitudesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
+  '/_authenticated/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
+  '/_authenticated/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/_authenticated/reportes': typeof AuthenticatedReportesRoute
+  '/_authenticated/solicitudes': typeof AuthenticatedSolicitudesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/disponibilidad'
+    | '/inventario'
+    | '/mis-solicitudes'
+    | '/nueva-reserva'
+    | '/reportes'
+    | '/solicitudes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/disponibilidad'
+    | '/inventario'
+    | '/mis-solicitudes'
+    | '/nueva-reserva'
+    | '/reportes'
+    | '/solicitudes'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/disponibilidad'
+    | '/_authenticated/inventario'
+    | '/_authenticated/mis-solicitudes'
+    | '/_authenticated/nueva-reserva'
+    | '/_authenticated/reportes'
+    | '/_authenticated/solicitudes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +136,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/disponibilidad': {
+      id: '/_authenticated/disponibilidad'
+      path: '/disponibilidad'
+      fullPath: '/disponibilidad'
+      preLoaderRoute: typeof AuthenticatedDisponibilidadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inventario': {
+      id: '/_authenticated/inventario'
+      path: '/inventario'
+      fullPath: '/inventario'
+      preLoaderRoute: typeof AuthenticatedInventarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mis-solicitudes': {
+      id: '/_authenticated/mis-solicitudes'
+      path: '/mis-solicitudes'
+      fullPath: '/mis-solicitudes'
+      preLoaderRoute: typeof AuthenticatedMisSolicitudesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/nueva-reserva': {
+      id: '/_authenticated/nueva-reserva'
+      path: '/nueva-reserva'
+      fullPath: '/nueva-reserva'
+      preLoaderRoute: typeof AuthenticatedNuevaReservaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reportes': {
+      id: '/_authenticated/reportes'
+      path: '/reportes'
+      fullPath: '/reportes'
+      preLoaderRoute: typeof AuthenticatedReportesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/solicitudes': {
+      id: '/_authenticated/solicitudes'
+      path: '/solicitudes'
+      fullPath: '/solicitudes'
+      preLoaderRoute: typeof AuthenticatedSolicitudesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDisponibilidadRoute: typeof AuthenticatedDisponibilidadRoute
+  AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
+  AuthenticatedMisSolicitudesRoute: typeof AuthenticatedMisSolicitudesRoute
+  AuthenticatedNuevaReservaRoute: typeof AuthenticatedNuevaReservaRoute
+  AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
+  AuthenticatedSolicitudesRoute: typeof AuthenticatedSolicitudesRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDisponibilidadRoute: AuthenticatedDisponibilidadRoute,
+  AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
+  AuthenticatedMisSolicitudesRoute: AuthenticatedMisSolicitudesRoute,
+  AuthenticatedNuevaReservaRoute: AuthenticatedNuevaReservaRoute,
+  AuthenticatedReportesRoute: AuthenticatedReportesRoute,
+  AuthenticatedSolicitudesRoute: AuthenticatedSolicitudesRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
