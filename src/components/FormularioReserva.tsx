@@ -121,6 +121,7 @@ export function FormularioReserva({ spaces, activities, onDone }: { spaces: Row[
 
         <L t="Observaciones"><Input value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} /></L>
         {(needs30 || items.length > 0) && <p className="text-sm rounded-md bg-accent text-accent-foreground px-3 py-2">{NOTA_30}</p>}
+        {d.end > "19:00" && <p className="text-sm rounded-md bg-destructive/10 text-destructive px-3 py-2">La hora de fin supera las 19:00 hrs: requiere autorización especial.</p>}
         {err && <p className="text-sm text-destructive">{err}</p>}
         <Button onClick={submit}>Enviar solicitud</Button>
       </CardContent>
