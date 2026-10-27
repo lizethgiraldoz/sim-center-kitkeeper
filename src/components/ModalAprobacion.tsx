@@ -11,7 +11,7 @@ import { fmt, hora, type Row } from "@/lib/app-data";
 const H0 = 7, H1 = 19;
 const horas = (iso: string) => {
   const [h, m] = new Date(iso).toLocaleTimeString("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }).split(":").map(Number);
-  return h + m / 60;
+  return (h ?? 0) + (m ?? 0) / 60;
 };
 const diaBogota = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 

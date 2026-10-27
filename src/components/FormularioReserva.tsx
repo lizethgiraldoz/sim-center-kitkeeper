@@ -86,10 +86,10 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       <CardContent className="space-y-5 pt-4">
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
           <L t="Facultad"><select className={sel} value={h.facultad_entidad}
-            onChange={(e) => setH({ ...h, facultad_entidad: e.target.value, programa: FACULTADES[e.target.value][0] })}>
+            onChange={(e) => setH({ ...h, facultad_entidad: e.target.value, programa: FACULTADES[e.target.value]?.[0] ?? "" })}>
             {Object.keys(FACULTADES).map((f) => <option key={f}>{f}</option>)}</select></L>
           <L t="Programa"><select className={sel} value={h.programa} onChange={(e) => setH({ ...h, programa: e.target.value })}>
-            {FACULTADES[h.facultad_entidad].map((p) => <option key={p}>{p}</option>)}</select></L>
+            {(FACULTADES[h.facultad_entidad] ?? []).map((p) => <option key={p}>{p}</option>)}</select></L>
           <L t="Semestre"><Input type="number" value={h.semestre} onChange={(e) => setH({ ...h, semestre: e.target.value })} /></L>
           <L t="No. de participantes"><Input type="number" value={h.participants} onChange={(e) => setH({ ...h, participants: +e.target.value })} /></L>
           <L t="Persona que hace la reserva"><Input value={h.solicitante_nombre} onChange={(e) => setH({ ...h, solicitante_nombre: e.target.value })} /></L>
