@@ -488,7 +488,9 @@ export type Database = {
           code: string | null
           created_at: string
           id: string
+          maintenance_quantity: number
           name: string
+          out_of_service_quantity: number
           quantity_total: number
           status: Database["public"]["Enums"]["asset_status"]
         }
@@ -498,7 +500,9 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          maintenance_quantity?: number
           name: string
+          out_of_service_quantity?: number
           quantity_total?: number
           status?: Database["public"]["Enums"]["asset_status"]
         }
@@ -508,7 +512,9 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          maintenance_quantity?: number
           name?: string
+          out_of_service_quantity?: number
           quantity_total?: number
           status?: Database["public"]["Enums"]["asset_status"]
         }
@@ -714,6 +720,14 @@ export type Database = {
           total: number
         }[]
       }
+      disponibilidad_plantilla: {
+        Args: { _activity_id: string; _ends: string; _starts: string }
+        Returns: {
+          disponible: number
+          name: string
+          resource_id: string
+        }[]
+      }
       external_form_complete: {
         Args: { _reservation_id: string }
         Returns: boolean
@@ -744,6 +758,15 @@ export type Database = {
       rechazar_reserva: {
         Args: { _id: string; _reason: string }
         Returns: undefined
+      }
+      recurso_disponible: {
+        Args: {
+          _ends: string
+          _exclude?: string
+          _resource_id: string
+          _starts: string
+        }
+        Returns: number
       }
       reporte_uso_programa_docente: {
         Args: { _from: string; _to: string }
