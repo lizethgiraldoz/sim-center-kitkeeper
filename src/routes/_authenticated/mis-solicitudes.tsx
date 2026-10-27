@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EstadoBadge } from "@/components/EstadoBadge";
+import { useNoLeidos } from "@/lib/unread";
 import { DetalleReserva } from "@/components/DetalleReserva";
 import { Titulo } from "@/components/SoloAdmin";
 import { RESERVA_SELECT, fmt, hora, useSessionUser, type Row } from "@/lib/app-data";
@@ -23,6 +24,7 @@ function Page() {
     enabled: !!me,
     queryFn: async () => (await supabase.from("reservations").select(RESERVA_SELECT).eq("teacher_id", me!.id).order("starts_at", { ascending: false })).data ?? [],
   });
+  const noLeidos = useNoLeidos();
   const [sel, setSel] = useState<Row | null>(null);
   const cancelar = async (id: string) => {
     const { error } = await supabase.rpc("cancelar_reserva", { _id: id });
@@ -44,7 +46,7 @@ function Page() {
                 <TableCell className="whitespace-nowrap">{fmt(r.starts_at)} – {hora(r.ends_at)}</TableCell>
                 <TableCell><EstadoBadge status={r.status} /></TableCell>
                 <TableCell className="text-right space-x-1 whitespace-nowrap">
-                  <Button size="sm" variant="outline" onClick={() => setSel(r)}>Ver detalle</Button>
+                  <Button size="sm" variant="outline" onClick={() => setSel(r)}>Ver detalle{noLeidos[r.id] > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
                   {["SOLICITADA", "APROBADA"].includes(r.status) && <Button size="sm" variant="ghost" onClick={() => cancelar(r.id)}>Cancelar</Button>}
                 </TableCell>
               </TableRow>

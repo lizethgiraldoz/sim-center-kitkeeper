@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EstadoBadge } from "@/components/EstadoBadge";
+import { useNoLeidos } from "@/lib/unread";
 import { DetalleReserva } from "@/components/DetalleReserva";
 import { ModalAprobacion } from "@/components/ModalAprobacion";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
@@ -26,6 +27,7 @@ function Page() {
     queryFn: async () => (await supabase.from("reservations").select(RESERVA_SELECT).order("starts_at")).data ?? [],
   });
   const { data: cat } = useCatalogos();
+  const noLeidos = useNoLeidos();
   const [ver, setVer] = useState<Row | null>(null);
   const [rechazo, setRechazo] = useState<Row | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -59,7 +61,7 @@ function Page() {
               <p className="text-xs text-muted-foreground">{r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}{r.leaves_faculty ? " · Salida externa" : ""}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setVer(r)}>Detalle</Button>
+              <Button size="sm" variant="ghost" onClick={() => setVer(r)}>Ver detalle{noLeidos[r.id] > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
               {r.status === "SOLICITADA" && <>
                 <Button size="sm" onClick={() => setAprobar(r)}>Aprobar</Button>
                 <Button size="sm" variant="destructive" onClick={() => { setMotivo(""); setRechazo(r); }}>Rechazar</Button>
