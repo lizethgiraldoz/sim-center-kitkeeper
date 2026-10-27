@@ -9,5 +9,5 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Reservation business rules (overlap blocking, 19:00 limit, approval, external-exit form, audit) live in database functions/triggers and are called via RPC; keep the UI thin so rules cannot be bypassed.
+- Reservation business rules (admin assigns the space at approval, past-date block, faculty whitelist, overlap exclusion constraint, 19:00 limit, external-exit form, per-reservation chat RLS) live in database functions/triggers and are called via RPC; keep the UI thin so rules cannot be bypassed.
 - App UI is split into routes under src/routes/_authenticated (sidebar shell in its route.tsx); "/" is the sign-in page. Admin pages wrap content in SoloAdmin, but access is enforced by RLS/RPCs, not the UI.

@@ -28,7 +28,7 @@ const ADMIN = [
   { title: "Disponibilidad y bloqueos", url: "/disponibilidad", icon: CalendarRange },
   { title: "Gestión de solicitudes", url: "/solicitudes", icon: ClipboardCheck },
   { title: "Inventario y quirófano", url: "/inventario", icon: Boxes },
-  { title: "Reportes y auditoría", url: "/reportes", icon: BarChart3 },
+  { title: "Estadísticas", url: "/reportes", icon: BarChart3 },
 ] as const;
 
 function Shell() {

@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { DetalleReserva } from "@/components/DetalleReserva";
+import { ModalAprobacion } from "@/components/ModalAprobacion";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { RESERVA_SELECT, fmt, hora, useCatalogos, type Row } from "@/lib/app-data";
 
@@ -30,6 +31,7 @@ function Page() {
   const [motivo, setMotivo] = useState("");
   const [reasig, setReasig] = useState<Row | null>(null);
   const [espacio, setEspacio] = useState("");
+  const [aprobar, setAprobar] = useState<Row | null>(null);
 
   const run = async (p: PromiseLike<{ error: { message: string } | null }>, ok: string) => {
     const { error } = await p;
@@ -53,16 +55,16 @@ function Page() {
           <Card key={r.id}><CardContent className="p-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-56">
               <div className="flex items-center gap-2"><EstadoBadge status={r.status} /><strong>{r.activities?.name}</strong></div>
-              <p className="text-sm text-muted-foreground">{r.spaces?.name} · {fmt(r.starts_at)} – {hora(r.ends_at)} · {r.participants} participantes</p>
+              <p className="text-sm text-muted-foreground">{r.spaces?.name ?? "Espacio por asignar"} · {fmt(r.starts_at)} – {hora(r.ends_at)} · {r.participants} participantes</p>
               <p className="text-xs text-muted-foreground">{r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}{r.leaves_faculty ? " · Salida externa" : ""}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="ghost" onClick={() => setVer(r)}>Detalle</Button>
               {r.status === "SOLICITADA" && <>
-                <Button size="sm" onClick={() => run(supabase.rpc("aprobar_reserva", { _id: r.id }), "Reserva aprobada y recursos bloqueados")}>Aprobar</Button>
+                <Button size="sm" onClick={() => setAprobar(r)}>Aprobar</Button>
                 <Button size="sm" variant="destructive" onClick={() => { setMotivo(""); setRechazo(r); }}>Rechazar</Button>
               </>}
-              {["SOLICITADA", "APROBADA"].includes(r.status) && <Button size="sm" variant="outline" onClick={() => { setEspacio(""); setReasig(r); }}>Reasignar espacio</Button>}
+              {(r.status === "APROBADA" || (r.status === "SOLICITADA" && r.space_id)) && <Button size="sm" variant="outline" onClick={() => { setEspacio(""); setReasig(r); }}>Reasignar espacio</Button>}
             </div>
           </CardContent></Card>
         ))}
@@ -88,6 +90,7 @@ function Page() {
         </DialogContent>
       </Dialog>
 
+      {aprobar && <ModalAprobacion r={aprobar} spaces={cat?.spaces ?? []} onClose={() => setAprobar(null)} onDone={() => { setAprobar(null); q.refetch(); }} />}
       {ver && <DetalleReserva r={ver} open onOpenChange={(o) => !o && setVer(null)} onChanged={() => q.refetch()} />}
     </div>
   );

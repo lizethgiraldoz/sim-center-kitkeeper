@@ -166,12 +166,14 @@ export type Database = {
           departure_at: string | null
           destination: string | null
           id: string
+          inventory_detail: string | null
           purpose: string | null
           reservation_id: string
           responsible_document: string | null
           responsible_name: string | null
           responsible_phone: string | null
           return_at: string | null
+          transport_vehicle: string | null
         }
         Insert: {
           accepts_responsibility?: boolean
@@ -179,12 +181,14 @@ export type Database = {
           departure_at?: string | null
           destination?: string | null
           id?: string
+          inventory_detail?: string | null
           purpose?: string | null
           reservation_id: string
           responsible_document?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
           return_at?: string | null
+          transport_vehicle?: string | null
         }
         Update: {
           accepts_responsibility?: boolean
@@ -192,12 +196,14 @@ export type Database = {
           departure_at?: string | null
           destination?: string | null
           id?: string
+          inventory_detail?: string | null
           purpose?: string | null
           reservation_id?: string
           responsible_document?: string | null
           responsible_name?: string | null
           responsible_phone?: string | null
           return_at?: string | null
+          transport_vehicle?: string | null
         }
         Relationships: [
           {
@@ -262,6 +268,41 @@ export type Database = {
           reservation_id?: string
         }
         Relationships: []
+      }
+      reservation_messages: {
+        Row: {
+          created_at: string
+          id: string
+          mensaje: string
+          read_at: string | null
+          reservation_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mensaje: string
+          read_at?: string | null
+          reservation_id: string
+          sender_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mensaje?: string
+          read_at?: string | null
+          reservation_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_messages_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservation_resources: {
         Row: {
@@ -329,7 +370,7 @@ export type Database = {
           semestre: number | null
           solicitante_documento: string | null
           solicitante_nombre: string | null
-          space_id: string
+          space_id: string | null
           starts_at: string
           status: Database["public"]["Enums"]["reservation_status"]
           teacher_id: string
@@ -363,7 +404,7 @@ export type Database = {
           semestre?: number | null
           solicitante_documento?: string | null
           solicitante_nombre?: string | null
-          space_id: string
+          space_id?: string | null
           starts_at: string
           status?: Database["public"]["Enums"]["reservation_status"]
           teacher_id: string
@@ -397,7 +438,7 @@ export type Database = {
           semestre?: number | null
           solicitante_documento?: string | null
           solicitante_nombre?: string | null
-          space_id?: string
+          space_id?: string | null
           starts_at?: string
           status?: Database["public"]["Enums"]["reservation_status"]
           teacher_id?: string
@@ -626,6 +667,10 @@ export type Database = {
     }
     Functions: {
       aprobar_reserva: { Args: { _id: string }; Returns: undefined }
+      aprobar_reserva_con_espacio: {
+        Args: { _id: string; _space_id: string }
+        Returns: undefined
+      }
       cancelar_reserva: { Args: { _id: string }; Returns: undefined }
       check_resource_conflicts: {
         Args: { _reservation_id: string }
@@ -690,6 +735,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      marcar_mensajes_leidos: { Args: { _rid: string }; Returns: undefined }
+      puede_ver_reserva: { Args: { _rid: string }; Returns: boolean }
       reasignar_espacio: {
         Args: { _id: string; _new_space_id: string }
         Returns: undefined

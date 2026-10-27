@@ -15,6 +15,13 @@
       "when": 1792681150093,
       "tag": "0001_formulario_oficial_f_cs_01",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793062552180,
+      "tag": "0002_admin_assigns_space_chat_external",
+      "breakpoints": true
     }
   ]
 }
