@@ -12,14 +12,13 @@ export function RelojHora({ value, onChange, max = "19:00" }: { value: string; o
   const [open, setOpen] = useState(false);
   const [modo, setModo] = useState<"h" | "m">("h");
   const [hh, mm] = value.split(":").map(Number);
-  const items = modo === "h" ? [...HORAS.slice(0, 12)] : MINUTOS;
-  const horasDial = modo === "h" ? [19, ...HORAS.slice(1)] : items; // 19 ocupa la posición superior (como las 12)
+  const horasDial = modo === "h" ? HORAS : MINUTOS;
   const set = (v: number) => {
     if (modo === "h") { onChange(`${p2(v)}:${v === 19 ? "00" : p2(mm)}`); if (v !== 19) setModo("m"); else setOpen(false); }
     else { onChange(`${p2(hh)}:${p2(v)}`); setOpen(false); setModo("h"); }
   };
   const sel = modo === "h" ? hh : mm;
-  const ang = ((modo === "h" ? (sel === 19 ? 0 : sel - 7) : sel / 5) * 30 - 90) * (Math.PI / 180);
+  const ang = ((modo === "h" ? (sel - 7) : sel / 5) * 30 - 90) * (Math.PI / 180);
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); setModo("h"); }}>
       <PopoverTrigger asChild>
@@ -47,6 +46,7 @@ export function RelojHora({ value, onChange, max = "19:00" }: { value: string; o
             );
           })}
         </div>
+        {modo === "h" && <Button type="button" size="sm" variant={hh === 19 ? "default" : "outline"} className="mt-2 w-full" onClick={() => set(19)}>19:00 (cierre)</Button>}
         <p className="mt-2 text-center text-xs text-muted-foreground">{modo === "h" ? "Elija la hora (07–19)" : "Elija los minutos"}</p>
       </PopoverContent>
     </Popover>
