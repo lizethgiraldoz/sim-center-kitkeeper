@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send, CheckCheck, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { fmt, useSessionUser } from "@/lib/app-data";
 export function ChatReserva({ reservationId, teacherId }: { reservationId: string; teacherId: string }) {
   const { data: me } = useSessionUser();
   const [txt, setTxt] = useState("");
+  const qc = useQueryClient();
   const end = useRef<HTMLDivElement>(null);
   const q = useQuery({
     queryKey: ["chat", reservationId],
@@ -26,7 +27,8 @@ export function ChatReserva({ reservationId, teacherId }: { reservationId: strin
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "nearest" });
-    if (q.data?.some((m) => m.sender_id !== me?.id && !m.read_at)) supabase.rpc("marcar_mensajes_leidos", { _rid: reservationId });
+    if (q.data?.some((m) => m.sender_id !== me?.id && !m.read_at)) supabase.rpc("marcar_mensajes_leidos", { _rid: reservationId }).then(() => qc.invalidateQueries({ queryKey: ["no-leidos"] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.data, me?.id, reservationId]);
 
   const enviar = async () => {

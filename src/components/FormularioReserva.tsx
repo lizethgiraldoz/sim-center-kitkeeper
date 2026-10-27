@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RelojHora } from "@/components/RelojHora";
+import logo from "@/assets/logo-udea.png.asset.json";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any;
@@ -50,6 +53,14 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
 
   const ymd = format(d.date, "yyyy-MM-dd");
   const iso = (t: string) => new Date(`${ymd}T${t}:00-05:00`).toISOString();
+  const [disp, setDisp] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!d.activity || d.end <= d.start) return;
+    supabase.rpc("disponibilidad_plantilla", { _activity_id: d.activity, _starts: iso(d.start), _ends: iso(d.end) })
+      .then(({ data }) => setDisp(Object.fromEntries((data ?? []).map((x: Row) => [x.resource_id, x.disponible]))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d.activity, ymd, d.start, d.end]);
+  const sinStock = items.filter((i) => i.cantidad > 0 && disp[i.resource_id] !== undefined && i.cantidad > disp[i.resource_id]);
   const isoLocal = (v: string) => (v ? new Date(`${v}:00-05:00`).toISOString() : "");
 
   const submit = async () => {
@@ -59,6 +70,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
     if (salida && (!ext.destination || !ext.responsible_name || !ext.transport_vehicle || !ext.departure_at || !ext.return_at)) {
       setErr("Complete la Solicitud de Préstamo y Salida Externa (destino, responsable, transporte, salida y retorno)."); return;
     }
+    if (sinStock.length) { setErr(`El recurso ${sinStock[0].detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
     const { error } = await supabase.rpc("crear_solicitud_formulario", {
       _f: { ...h, activity_id: d.activity, starts_at: iso(d.start), ends_at: iso(d.end), notes: d.notes,
         items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
@@ -114,8 +126,8 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               </PopoverContent>
             </Popover>
           </L>
-          <L t="Hora inicio"><Input type="time" value={d.start} onChange={(e) => setD({ ...d, start: e.target.value })} /></L>
-          <L t="Hora fin (máx. 19:00)"><Input type="time" max="19:00" value={d.end} onChange={(e) => setD({ ...d, end: e.target.value })} /></L>
+          <L t="Hora inicio"><RelojHora value={d.start} onChange={(v) => setD({ ...d, start: v })} /></L>
+          <L t="Hora fin (máx. 19:00)"><RelojHora value={d.end} onChange={(v) => setD({ ...d, end: v })} /></L>
         </div>
         <p className="text-xs text-muted-foreground">El espacio o laboratorio lo asigna el administrador al revisar la solicitud.</p>
 
@@ -128,7 +140,8 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               <div key={it.resource_id} className="grid grid-cols-[80px_1fr] gap-2 px-3 py-1 items-center text-sm">
                 <Input type="number" min={0} max={it.std} className="h-8" value={it.cantidad}
                   onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, cantidad: Math.max(0, Math.min(it.std, +e.target.value)) } : x))} />
-                <span>{it.detalle}</span>
+                <span>{it.detalle}{disp[it.resource_id] !== undefined && it.cantidad > disp[it.resource_id] && (
+                  <span className="block text-xs text-destructive">Disponible: {disp[it.resource_id]}. El recurso {it.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.</span>)}</span>
               </div>
             ))}
           </div>
@@ -205,44 +218,53 @@ export function ListaChequeo() {
   );
 }
 
-export function FormatoImprimible({ r, onClose }: { r: Row; onClose: () => void }) {
-  const t = (s: string) => new Date(s).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" });
-  const dd = (s: string) => new Date(s).toLocaleDateString("es-CO", { timeZone: "America/Bogota" });
-  const cell = "border px-2 py-1";
+export function FormatoPreviewModal({ r, onClose }: { r: Row; onClose: () => void }) {
+  const tz = { timeZone: "America/Bogota" } as const;
+  const t = (x?: string) => (x ? new Date(x).toLocaleTimeString("es-CO", { ...tz, hour: "2-digit", minute: "2-digit" }) : "");
+  const dd = (x?: string) => (x ? new Date(x).toLocaleDateString("es-CO", tz) : "");
+  const cell = "border border-foreground/40 px-2 py-1 align-top";
+  const recs: Row[] = Array.isArray(r?.reservation_resources) ? r.reservation_resources : [];
+  const filas = recs.length ? recs : [{}];
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-auto p-6 print:p-0">
-      <div className="max-w-4xl mx-auto space-y-3 text-sm">
-        <div className="flex gap-2 print:hidden"><Button onClick={() => window.print()}>Imprimir / Guardar PDF</Button><Button variant="outline" onClick={onClose}>Cerrar</Button></div>
-        <table className="w-full border-collapse"><tbody><tr>
-          <td className={cell}>UNIVERSIDAD DE ANTIOQUIA 1803<br />FACULTAD DE MEDICINA</td>
-          <td className={`${cell} text-center font-bold`}>SOLICITUD DE RESERVA<br />LABORATORIO DE SIMULACIÓN</td>
-          <td className={cell}>CÓDIGO: F-CS-01<br />VERSIÓN: 01</td></tr></tbody></table>
-        <table className="w-full border-collapse"><tbody>
-          <tr><td className={cell}>Fecha de solicitud: {dd(r.fecha_solicitud ?? r.created_at)}</td><td className={cell} colSpan={2}>Facultad o Entidad: {r.facultad_entidad}</td></tr>
-          <tr><td className={cell}>Programa: {r.programa} · Semestre: {r.semestre ?? ""}</td><td className={cell}>No. de participantes: {r.participants}</td><td className={cell}>Teléfono: {r.telefono_contacto ?? ""}</td></tr>
-          <tr><td className={cell}>Persona que hace la reserva: {r.solicitante_nombre ?? ""} · Doc. # {r.solicitante_documento ?? ""}</td><td className={cell} colSpan={2}>Docente responsable: {r.docente_responsable_nombre ?? ""} · Doc. # {r.docente_responsable_documento ?? ""}</td></tr>
-        </tbody></table>
-        <p className="font-bold">DESCRIPCIÓN</p>
-        <table className="w-full border-collapse"><thead><tr>
-          {["Fecha de la actividad", "Actividad (es)", "Cantidad", "Detalle", "Lugar", "Hora inicio", "Hora fin"].map((x) => <th key={x} className={`${cell} text-left`}>{x}</th>)}
-        </tr></thead><tbody>
-          {(r.reservation_resources?.length ? r.reservation_resources : [{}]).map((x: Row, i: number) => (
-            <tr key={i}>
-              {i === 0 && <><td className={cell} rowSpan={r.reservation_resources?.length || 1}>{dd(r.starts_at)}</td><td className={cell} rowSpan={r.reservation_resources?.length || 1}>{r.activities?.name}</td></>}
-              <td className={cell}>{x.quantity ?? ""}</td><td className={cell}>{x.resources?.name ?? ""}</td>
-              {i === 0 && <><td className={cell} rowSpan={r.reservation_resources?.length || 1}>{r.spaces?.name} ({r.lugar_tipo}{r.aulas_moviles_subtipo ? ` · ${r.aulas_moviles_subtipo}` : ""})</td>
-                <td className={cell} rowSpan={r.reservation_resources?.length || 1}>{t(r.starts_at)}</td><td className={cell} rowSpan={r.reservation_resources?.length || 1}>{t(r.ends_at)}</td></>}
-            </tr>
-          ))}
-        </tbody></table>
-        <ul className="list-disc pl-5 text-xs">
-          <li>Aulas móviles (AM): Accesos y Operaciones en Emergencia (AOE), Transporte Asistencial (TA) y Primer Respondiente (PR)</li>
-          <li>Lugar: (CEAPH) Centro de entrenamiento - (LDS) Laboratorio de Simulación - (LL) Living Lab</li>
-        </ul>
-        <p className="text-xs"><strong>Nota:</strong> Si su reserva es para aulas móviles o equipos, el docente responsable debe estar media hora antes de la práctica.</p>
-        <p className="text-xs">Estado: {r.status}</p>
-        <p className="text-xs text-muted-foreground">Laboratorio de Simulación - Facultad de Medicina - Edificio Andrés Posada Arango - Piso 3 - Tel. 2196043/2196950 simulacionmedicina@udea.edu.co</p>
-      </div>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-auto print:max-h-none print:shadow-none">
+        <DialogHeader className="print:hidden"><DialogTitle>Formato F-CS-01</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-xs text-foreground bg-background">
+          <table className="w-full border-collapse"><tbody><tr>
+            <td className={`${cell} w-32`}><img src={logo.url} alt="Logosímbolo Universidad de Antioquia" className="h-14 mx-auto object-contain" /></td>
+            <td className={`${cell} text-center font-bold`}>UNIVERSIDAD DE ANTIOQUIA · FACULTAD DE MEDICINA<br />SOLICITUD DE RESERVA LABORATORIO DE SIMULACIÓN</td>
+            <td className={`${cell} w-32`}>CÓDIGO: F-CS-01<br />VERSIÓN: 01</td></tr></tbody></table>
+          <table className="w-full border-collapse"><tbody>
+            <tr><td className={cell}>Fecha de solicitud: {dd(r.fecha_solicitud ?? r.created_at)}</td><td className={cell} colSpan={2}>Facultad o Entidad: {r.facultad_entidad ?? ""}</td></tr>
+            <tr><td className={cell}>Programa: {r.programa ?? ""} · Semestre: {r.semestre ?? ""}</td><td className={cell}>No. de participantes: {r.participants ?? ""}</td><td className={cell}>Teléfono: {r.telefono_contacto ?? ""}</td></tr>
+            <tr><td className={cell}>Persona que hace la reserva: {r.solicitante_nombre ?? ""} · Doc. # {r.solicitante_documento ?? ""}</td><td className={cell} colSpan={2}>Docente responsable: {r.docente_responsable_nombre ?? ""} · Doc. # {r.docente_responsable_documento ?? ""}</td></tr>
+          </tbody></table>
+          <p className="font-bold">DESCRIPCIÓN</p>
+          <table className="w-full border-collapse"><thead><tr>
+            {["Fecha", "Actividad", "Cantidad", "Detalle", "Lugar", "Hora inicio", "Hora fin"].map((x) => <th key={x} className={`${cell} text-left bg-muted`}>{x}</th>)}
+          </tr></thead><tbody>
+            {filas.map((x: Row, i: number) => (
+              <tr key={i}>
+                {i === 0 && <><td className={cell} rowSpan={filas.length}>{dd(r.starts_at)}</td><td className={cell} rowSpan={filas.length}>{r.activities?.name ?? ""}</td></>}
+                <td className={cell}>{x?.cantidad_aprobada ?? x?.quantity ?? ""}</td><td className={cell}>{x?.resources?.name ?? ""}</td>
+                {i === 0 && <><td className={cell} rowSpan={filas.length}>{r.spaces?.name ?? "Por asignar"}</td>
+                  <td className={cell} rowSpan={filas.length}>{t(r.starts_at)}</td><td className={cell} rowSpan={filas.length}>{t(r.ends_at)}</td></>}
+              </tr>
+            ))}
+          </tbody></table>
+          <ul className="list-disc pl-5">
+            <li>Aulas móviles (AM): Accesos y Operaciones en Emergencia (AOE), Transporte Asistencial (TA) y Primer Respondiente (PR)</li>
+            <li>Lugar: (CEAPH) Centro de entrenamiento - (LDS) Laboratorio de Simulación - (LL) Living Lab</li>
+          </ul>
+          <p><strong>Nota:</strong> Si su reserva es para aulas móviles o equipos, el docente responsable debe estar media hora antes de la práctica.</p>
+          <div className="grid grid-cols-2 gap-8 pt-10">
+            <div className="border-t border-foreground/60 pt-1 text-center">Firma docente responsable</div>
+            <div className="border-t border-foreground/60 pt-1 text-center">Firma Coordinación Centro de Simulación</div>
+          </div>
+          <p className="text-muted-foreground">Estado: {r.status} · Laboratorio de Simulación - Facultad de Medicina - Edificio Andrés Posada Arango - Piso 3 - Tel. 2196043/2196950 simulacionmedicina@udea.edu.co</p>
+          <div className="flex gap-2 print:hidden"><Button onClick={() => window.print()}>Imprimir / Guardar PDF</Button><Button variant="outline" onClick={onClose}>Cerrar</Button></div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -8,7 +8,7 @@ export const fmt = (d: string) => new Date(d).toLocaleString("es-CO", { timeZone
 export const hora = (d: string) => new Date(d).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" });
 
 export const RESERVA_SELECT =
-  "*, spaces(name, type), activities(name), reservation_resources(quantity, resources(name)), external_borrow_forms(*)";
+  "*, spaces(name, type), activities(name), reservation_resources(quantity, cantidad_aprobada, resources(name)), external_borrow_forms(*)";
 
 export function useSessionUser() {
   return useQuery({
