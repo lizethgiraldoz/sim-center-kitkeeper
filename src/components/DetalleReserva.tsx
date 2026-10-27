@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EstadoBadge } from "@/components/EstadoBadge";
-import { FormatoImprimible, NOTA_30 } from "@/components/FormularioReserva";
+import { FormatoPreviewModal, NOTA_30 } from "@/components/FormularioReserva";
 import { supabase } from "@/integrations/supabase/client";
 import { fmt, hora, type Row } from "@/lib/app-data";
 import { toast } from "sonner";
@@ -59,10 +59,10 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
             )}
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
+            {print && <FormatoPreviewModal r={r} onClose={() => setPrint(false)} />}
           </div>
         </DialogContent>
       </Dialog>
-      {print && <FormatoImprimible r={r} onClose={() => setPrint(false)} />}
     </>
   );
 }
