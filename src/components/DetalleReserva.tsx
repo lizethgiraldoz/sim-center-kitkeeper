@@ -7,6 +7,7 @@ import { FormatoImprimible, NOTA_30 } from "@/components/FormularioReserva";
 import { supabase } from "@/integrations/supabase/client";
 import { fmt, hora, type Row } from "@/lib/app-data";
 import { toast } from "sonner";
+import { ChatReserva } from "@/components/ChatReserva";
 
 export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void }) {
   const [print, setPrint] = useState(false);
@@ -25,7 +26,7 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2 items-center"><EstadoBadge status={r.status} />{r.leaves_faculty && <span className="text-xs border rounded px-2">Salida externa</span>}</div>
             <dl className="grid grid-cols-2 gap-2">
-              <dt className="text-muted-foreground">Espacio</dt><dd>{r.spaces?.name} ({r.lugar_tipo}{r.aulas_moviles_subtipo ? ` · ${r.aulas_moviles_subtipo}` : ""})</dd>
+              <dt className="text-muted-foreground">Espacio</dt><dd>{r.spaces?.name ?? <span className="italic text-muted-foreground">Por asignar (administrador)</span>}</dd>
               <dt className="text-muted-foreground">Horario</dt><dd>{fmt(r.starts_at)} – {hora(r.ends_at)}</dd>
               <dt className="text-muted-foreground">Programa / semestre</dt><dd>{r.programa} · {r.semestre ?? "—"}</dd>
               <dt className="text-muted-foreground">Participantes</dt><dd>{r.participants}</dd>
@@ -46,6 +47,17 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
                 <Button size="sm" onClick={guardar}>Guardar y aceptar responsabilidad</Button>
               </div>
             )}
+            {r.leaves_faculty && form?.accepts_responsibility && (
+              <div className="rounded-xl border p-3 text-xs grid grid-cols-2 gap-1">
+                <p className="col-span-2 font-semibold text-sm">Préstamo y salida externa</p>
+                <span className="text-muted-foreground">Destino</span><span>{form.destination}</span>
+                <span className="text-muted-foreground">Responsable</span><span>{form.responsible_name} · {form.responsible_phone}</span>
+                <span className="text-muted-foreground">Transporte</span><span>{form.transport_vehicle ?? "—"}</span>
+                <span className="text-muted-foreground">Salida / retorno</span><span>{form.departure_at ? fmt(form.departure_at) : "—"} → {form.return_at ? fmt(form.return_at) : "—"}</span>
+                <span className="text-muted-foreground">Inventario</span><span className="whitespace-pre-wrap">{form.inventory_detail ?? "—"}</span>
+              </div>
+            )}
+            <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
           </div>
         </DialogContent>
