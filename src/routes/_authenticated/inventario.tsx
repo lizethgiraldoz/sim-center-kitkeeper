@@ -41,7 +41,7 @@ function Page() {
   };
   return (
     <div>
-      <Titulo t="Inventario y quirófano" d="Cantidades por estado; "Reservados" se calcula solo con las reservas aprobadas" />
+      <Titulo t="Inventario y quirófano" d="Cantidades por estado; lo reservado se calcula solo con las reservas aprobadas" />
       <Tabs defaultValue="recursos">
         <TabsList><TabsTrigger value="recursos">Recursos</TabsTrigger><TabsTrigger value="quirofano">Quirófano</TabsTrigger><TabsTrigger value="chequeo">Lista de chequeo</TabsTrigger></TabsList>
         <TabsContent value="recursos">
