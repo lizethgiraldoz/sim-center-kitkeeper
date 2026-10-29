@@ -11,7 +11,7 @@ const p2 = (n: number) => String(n).padStart(2, "0");
 export function RelojHora({ value, onChange, max = "19:00" }: { value: string; onChange: (v: string) => void; max?: string }) {
   const [open, setOpen] = useState(false);
   const [modo, setModo] = useState<"h" | "m">("h");
-  const [hh, mm] = value.split(":").map(Number);
+  const [hh = 8, mm = 0] = value.split(":").map(Number);
   const horasDial = modo === "h" ? HORAS : MINUTOS;
   const set = (v: number) => {
     if (modo === "h") { onChange(`${p2(v)}:${v === 19 ? "00" : p2(mm)}`); if (v !== 19) setModo("m"); else setOpen(false); }

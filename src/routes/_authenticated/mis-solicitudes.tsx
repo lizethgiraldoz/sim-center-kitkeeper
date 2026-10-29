@@ -50,7 +50,7 @@ function Page() {
                 <TableCell className="whitespace-nowrap">{fmt(r.starts_at)} – {hora(r.ends_at)}</TableCell>
                 <TableCell><EstadoBadge status={r.status} /></TableCell>
                 <TableCell className="text-right space-x-1 whitespace-nowrap">
-                  <Button size="sm" variant="outline" onClick={() => setSel(r)}>Ver detalle{noLeidos[r.id] > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setSel(r)}>Ver detalle{(noLeidos[r.id] ?? 0) > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
                   {["SOLICITADA", "APROBADA"].includes(r.status) && <Button size="sm" variant="ghost" onClick={() => { setJust(""); setCanc(r); }}>Cancelar solicitud</Button>}
                 </TableCell>
               </TableRow>
