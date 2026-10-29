@@ -60,7 +60,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       .then(({ data }) => setDisp(Object.fromEntries((data ?? []).map((x: Row) => [x.resource_id, x.disponible]))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d.activity, ymd, d.start, d.end]);
-  const sinStock = items.filter((i) => i.cantidad > 0 && disp[i.resource_id] !== undefined && i.cantidad > disp[i.resource_id]);
+  const sinStock = items.filter((i) => i.cantidad > 0 && disp[i.resource_id] !== undefined && i.cantidad > (disp[i.resource_id] ?? 0));
   const isoLocal = (v: string) => (v ? new Date(`${v}:00-05:00`).toISOString() : "");
 
   const submit = async () => {
@@ -70,7 +70,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
     if (salida && (!ext.destination || !ext.responsible_name || !ext.transport_vehicle || !ext.departure_at || !ext.return_at)) {
       setErr("Complete la Solicitud de Préstamo y Salida Externa (destino, responsable, transporte, salida y retorno)."); return;
     }
-    if (sinStock.length) { setErr(`El recurso ${sinStock[0].detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
+    if (sinStock.length) { setErr(`El recurso ${sinStock[0]?.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
     const { error } = await supabase.rpc("crear_solicitud_formulario", {
       _f: { ...h, activity_id: d.activity, starts_at: iso(d.start), ends_at: iso(d.end), notes: d.notes,
         items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
@@ -140,7 +140,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               <div key={it.resource_id} className="grid grid-cols-[80px_1fr] gap-2 px-3 py-1 items-center text-sm">
                 <Input type="number" min={0} max={it.std} className="h-8" value={it.cantidad}
                   onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, cantidad: Math.max(0, Math.min(it.std, +e.target.value)) } : x))} />
-                <span>{it.detalle}{disp[it.resource_id] !== undefined && it.cantidad > disp[it.resource_id] && (
+                <span>{it.detalle}{disp[it.resource_id] !== undefined && it.cantidad > (disp[it.resource_id] ?? 0) && (
                   <span className="block text-xs text-destructive">Disponible: {disp[it.resource_id]}. El recurso {it.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.</span>)}</span>
               </div>
             ))}

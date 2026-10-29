@@ -29,6 +29,13 @@
       "when": 1793064613731,
       "tag": "0003_inventory_quantities",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793243472613,
+      "tag": "0004_cancel_justification",
+      "breakpoints": true
     }
   ]
 }

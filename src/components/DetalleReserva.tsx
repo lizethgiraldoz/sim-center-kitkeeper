@@ -32,7 +32,9 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
               <dt className="text-muted-foreground">Participantes</dt><dd>{r.participants}</dd>
               <dt className="text-muted-foreground">Docente responsable</dt><dd>{r.docente_responsable_nombre ?? "—"}</dd>
             </dl>
+            <div className="rounded-md border bg-accent/40 px-3 py-2"><p className="font-semibold mb-0.5">Observaciones del docente</p><p className="whitespace-pre-wrap text-foreground">{r.notes?.trim() ? r.notes : <span className="italic text-muted-foreground">Sin observaciones</span>}</p></div>
             {r.rejection_reason && <p className="rounded-md bg-destructive/10 text-destructive px-3 py-2"><strong>Motivo del rechazo:</strong> {r.rejection_reason}</p>}
+            {r.justificacion_cancelacion && <p className="rounded-md bg-muted px-3 py-2"><strong>Justificación de la cancelación:</strong> {r.justificacion_cancelacion}</p>}
             {r.requiere_ingreso_30min_antes && <p className="rounded-md bg-accent px-3 py-2">{NOTA_30}</p>}
             <div>
               <p className="font-semibold mb-1">Equipos e insumos</p>
