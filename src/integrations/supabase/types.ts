@@ -359,6 +359,7 @@ export type Database = {
           facultad_entidad: string | null
           fecha_solicitud: string
           id: string
+          justificacion_cancelacion: string | null
           leaves_faculty: boolean
           lugar_tipo: Database["public"]["Enums"]["lugar_tipo"]
           notes: string | null
@@ -393,6 +394,7 @@ export type Database = {
           facultad_entidad?: string | null
           fecha_solicitud?: string
           id?: string
+          justificacion_cancelacion?: string | null
           leaves_faculty?: boolean
           lugar_tipo?: Database["public"]["Enums"]["lugar_tipo"]
           notes?: string | null
@@ -427,6 +429,7 @@ export type Database = {
           facultad_entidad?: string | null
           fecha_solicitud?: string
           id?: string
+          justificacion_cancelacion?: string | null
           leaves_faculty?: boolean
           lugar_tipo?: Database["public"]["Enums"]["lugar_tipo"]
           notes?: string | null
@@ -678,6 +681,10 @@ export type Database = {
         Returns: undefined
       }
       cancelar_reserva: { Args: { _id: string }; Returns: undefined }
+      cancelar_reserva_justificada: {
+        Args: { _id: string; _justificacion: string }
+        Returns: undefined
+      }
       check_resource_conflicts: {
         Args: { _reservation_id: string }
         Returns: undefined
