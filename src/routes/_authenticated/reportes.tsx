@@ -80,7 +80,6 @@ function Page() {
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="rounded-xl shadow-sm"><CardHeader><CardTitle className="text-base">Horas de laboratorio por programa</CardTitle></CardHeader>
           <Card className="rounded-xl shadow-sm"><CardHeader className="space-y-2"><CardTitle className="text-base">Uso de horas por programa</CardTitle>
           <Tabs value={vistaProg} onValueChange={setVistaProg}><TabsList><TabsTrigger value="PORCENTAJE">Comparativo %</TabsTrigger><TabsTrigger value="Medicina">Medicina</TabsTrigger><TabsTrigger value="Enfermería">Enfermería</TabsTrigger></TabsList></Tabs></CardHeader>
           <CardContent className="h-72">{datosProg.length === 0 ? <p className="text-sm text-muted-foreground">Sin reservas aprobadas en el periodo.</p> : <ResponsiveContainer>
