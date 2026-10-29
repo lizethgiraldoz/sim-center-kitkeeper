@@ -6,6 +6,7 @@ import { CalendarCheck, Gauge, Trophy, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { type Row } from "@/lib/app-data";
 
@@ -24,6 +25,7 @@ const count = <T,>(xs: T[], k: (x: T) => string, w: (x: T) => number = () => 1) 
 function Page() {
   const now = new Date();
   const [desde, setDesde] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
+  const [vistaProg, setVistaProg] = useState("PORCENTAJE");
   const [hasta, setHasta] = useState(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10));
   const q = useQuery({
     queryKey: ["dashboard", desde, hasta],
@@ -44,6 +46,10 @@ function Page() {
   const modulos = count(rs, (r) => r.activities?.name ?? "—").sort((a, b) => b.value - a.value);
   const recursos = count(activas.flatMap((r) => r.reservation_resources ?? []), (x: Row) => x.resources?.name ?? "—", (x: Row) => x.quantity).sort((a, b) => b.value - a.value);
   const programas = count(activas, (r) => r.programa ?? "—", dur).map((x) => ({ ...x, value: +x.value.toFixed(1) }));
+  const totalH = programas.reduce((a, p) => a + p.value, 0) || 1;
+  const progPct = programas.map((p) => ({ name: p.name, value: +((p.value / totalH) * 100).toFixed(1) }));
+  const progDetalle = count(activas.filter((r) => (r.programa ?? "").toLowerCase().includes(vistaProg.toLowerCase())), (r) => r.activities?.name ?? "—", dur).map((x) => ({ ...x, value: +x.value.toFixed(1) }));
+  const datosProg = vistaProg === "PORCENTAJE" ? progPct : progDetalle;
   const estados = count(rs, (r) => r.status);
   const pico = Array.from({ length: 13 }, (_, i) => i + 7).map((h) => ({
     name: `${h}:00`, value: rs.filter((r) => r.status !== "CANCELADA" && horaB(r.starts_at) <= h && horaB(r.ends_at) + (new Date(r.ends_at).getMinutes() ? 1 : 0) > h).length,
@@ -75,10 +81,12 @@ function Page() {
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-xl shadow-sm"><CardHeader><CardTitle className="text-base">Horas de laboratorio por programa</CardTitle></CardHeader>
-          <CardContent className="h-72"><ResponsiveContainer>
-            <BarChart data={programas}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis fontSize={11} /><Tooltip />
-              <Bar dataKey="value" name="Horas" radius={[8, 8, 0, 0]}>{programas.map((_, i) => <Cell key={i} fill={VERDES[i % 5]} />)}</Bar></BarChart>
-          </ResponsiveContainer></CardContent></Card>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="space-y-2"><CardTitle className="text-base">Uso de horas por programa</CardTitle>
+          <Tabs value={vistaProg} onValueChange={setVistaProg}><TabsList><TabsTrigger value="PORCENTAJE">Comparativo %</TabsTrigger><TabsTrigger value="Medicina">Medicina</TabsTrigger><TabsTrigger value="Enfermería">Enfermería</TabsTrigger></TabsList></Tabs></CardHeader>
+          <CardContent className="h-72">{datosProg.length === 0 ? <p className="text-sm text-muted-foreground">Sin reservas aprobadas en el periodo.</p> : <ResponsiveContainer>
+            <BarChart data={datosProg}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis fontSize={11} domain={vistaProg === "PORCENTAJE" ? [0, 100] : [0, "auto"]} unit={vistaProg === "PORCENTAJE" ? "%" : "h"} /><Tooltip formatter={(v: number) => vistaProg === "PORCENTAJE" ? `${v}% de las horas` : `${v} h`} />
+              <Bar dataKey="value" name={vistaProg === "PORCENTAJE" ? "Participación" : "Horas"} radius={[8, 8, 0, 0]}>{datosProg.map((_, i) => <Cell key={i} fill={VERDES[i % 5]} />)}</Bar></BarChart>
+          </ResponsiveContainer>}</CardContent></Card>
         <Card className="rounded-xl shadow-sm"><CardHeader><CardTitle className="text-base">Distribución de estados</CardTitle></CardHeader>
           <CardContent className="h-72"><ResponsiveContainer>
             <PieChart><Pie data={estados} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
