@@ -219,18 +219,21 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          estado_cuenta: string
           full_name: string | null
           id: string
         }
         Insert: {
           created_at?: string
           email?: string | null
+          estado_cuenta?: string
           full_name?: string | null
           id: string
         }
         Update: {
           created_at?: string
           email?: string | null
+          estado_cuenta?: string
           full_name?: string | null
           id?: string
         }
@@ -346,6 +349,7 @@ export type Database = {
       reservations: {
         Row: {
           activity_id: string | null
+          asistencia: string | null
           aulas_moviles_subtipo:
             | Database["public"]["Enums"]["am_subtipo"]
             | null
@@ -356,7 +360,9 @@ export type Database = {
           docente_responsable_documento: string | null
           docente_responsable_nombre: string | null
           ends_at: string
+          estado_montaje: string
           facultad_entidad: string | null
+          falta_equipo: string | null
           fecha_solicitud: string
           id: string
           justificacion_cancelacion: string | null
@@ -368,6 +374,7 @@ export type Database = {
           rejection_reason: string | null
           requiere_ingreso_30min_antes: boolean
           reviewer_id: string | null
+          salida_estado: string | null
           semestre: number | null
           solicitante_documento: string | null
           solicitante_nombre: string | null
@@ -381,6 +388,7 @@ export type Database = {
         }
         Insert: {
           activity_id?: string | null
+          asistencia?: string | null
           aulas_moviles_subtipo?:
             | Database["public"]["Enums"]["am_subtipo"]
             | null
@@ -391,7 +399,9 @@ export type Database = {
           docente_responsable_documento?: string | null
           docente_responsable_nombre?: string | null
           ends_at: string
+          estado_montaje?: string
           facultad_entidad?: string | null
+          falta_equipo?: string | null
           fecha_solicitud?: string
           id?: string
           justificacion_cancelacion?: string | null
@@ -403,6 +413,7 @@ export type Database = {
           rejection_reason?: string | null
           requiere_ingreso_30min_antes?: boolean
           reviewer_id?: string | null
+          salida_estado?: string | null
           semestre?: number | null
           solicitante_documento?: string | null
           solicitante_nombre?: string | null
@@ -416,6 +427,7 @@ export type Database = {
         }
         Update: {
           activity_id?: string | null
+          asistencia?: string | null
           aulas_moviles_subtipo?:
             | Database["public"]["Enums"]["am_subtipo"]
             | null
@@ -426,7 +438,9 @@ export type Database = {
           docente_responsable_documento?: string | null
           docente_responsable_nombre?: string | null
           ends_at?: string
+          estado_montaje?: string
           facultad_entidad?: string | null
+          falta_equipo?: string | null
           fecha_solicitud?: string
           id?: string
           justificacion_cancelacion?: string | null
@@ -438,6 +452,7 @@ export type Database = {
           rejection_reason?: string | null
           requiere_ingreso_30min_antes?: boolean
           reviewer_id?: string | null
+          salida_estado?: string | null
           semestre?: number | null
           solicitante_documento?: string | null
           solicitante_nombre?: string | null
@@ -531,6 +546,35 @@ export type Database = {
           },
         ]
       }
+      semester_practice_rules: {
+        Row: {
+          activity_id: string
+          id: string
+          programa: string
+          semestre: number
+        }
+        Insert: {
+          activity_id: string
+          id?: string
+          programa: string
+          semestre: number
+        }
+        Update: {
+          activity_id?: string
+          id?: string
+          programa?: string
+          semestre?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semester_practice_rules_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spaces: {
         Row: {
           capacity: number
@@ -539,6 +583,7 @@ export type Database = {
           id: string
           name: string
           open_time: string
+          parent_space_id: string | null
           status: Database["public"]["Enums"]["asset_status"]
           type: Database["public"]["Enums"]["space_type"]
         }
@@ -549,6 +594,7 @@ export type Database = {
           id?: string
           name: string
           open_time?: string
+          parent_space_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           type?: Database["public"]["Enums"]["space_type"]
         }
@@ -559,10 +605,19 @@ export type Database = {
           id?: string
           name?: string
           open_time?: string
+          parent_space_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           type?: Database["public"]["Enums"]["space_type"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spaces_parent_space_id_fkey"
+            columns: ["parent_space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       surgical_instruments: {
         Row: {
@@ -675,6 +730,10 @@ export type Database = {
       }
     }
     Functions: {
+      actualizar_seguimiento: {
+        Args: { _campo: string; _detalle?: string; _id: string; _valor: string }
+        Returns: undefined
+      }
       aprobar_reserva: { Args: { _id: string }; Returns: undefined }
       aprobar_reserva_con_espacio: {
         Args: { _id: string; _space_id: string }
@@ -793,6 +852,10 @@ export type Database = {
           name: string
           reservas: number
         }[]
+      }
+      verificar_docente: {
+        Args: { _estado: string; _id: string }
+        Returns: undefined
       }
     }
     Enums: {
