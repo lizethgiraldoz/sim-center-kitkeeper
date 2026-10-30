@@ -36,6 +36,13 @@
       "when": 1793243472613,
       "tag": "0004_cancel_justification",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793371371260,
+      "tag": "0005_verificacion_docentes_tecnicos_subespacios",
+      "breakpoints": true
     }
   ]
 }
