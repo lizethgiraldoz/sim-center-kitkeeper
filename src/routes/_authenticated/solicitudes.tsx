@@ -61,6 +61,7 @@ function Page() {
               <p className="text-xs text-muted-foreground">{r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}{r.leaves_faculty ? " · Salida externa" : ""}</p>
               {r.notes?.trim() && <p className="text-xs mt-1 text-foreground"><strong>Observaciones:</strong> {r.notes}</p>}
               {r.status === "CANCELADA" && r.justificacion_cancelacion && <p className="text-xs mt-1 rounded bg-muted px-2 py-1 text-foreground"><strong>Cancelada por el docente:</strong> {r.justificacion_cancelacion}</p>}
+              {r.status === "APROBADA" && <Seguimiento r={r} onChanged={() => q.refetch()} />}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="ghost" onClick={() => setVer(r)}>Ver detalle{(noLeidos[r.id] ?? 0) > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
