@@ -11,7 +11,7 @@ import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { type Row } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/reportes")({
-  head: () => ({ meta: [{ title: "Estadísticas · Centro de Simulación UdeA" }, { name: "description", content: "Panel de uso de laboratorios y recursos del Centro de Simulación." }] }),
+  head: () => ({ meta: [{ title: "Estadísticas · Laboratorio de Simulación UdeA" }, { name: "description", content: "Panel de uso de laboratorios y recursos del Laboratorio de Simulación." }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
 

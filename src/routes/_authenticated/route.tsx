@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { FilePlus, ListChecks, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut } from "lucide-react";
+import { FilePlus, ListChecks, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
@@ -27,6 +27,7 @@ const DOCENTE = [
 const ADMIN = [
   { title: "Disponibilidad y bloqueos", url: "/disponibilidad", icon: CalendarRange },
   { title: "Gestión de solicitudes", url: "/solicitudes", icon: ClipboardCheck },
+  { title: "Verificación de docentes", url: "/docentes", icon: UserCheck },
   { title: "Inventario y quirófano", url: "/inventario", icon: Boxes },
   { title: "Estadísticas", url: "/reportes", icon: BarChart3 },
 ] as const;
@@ -73,7 +74,7 @@ function Shell() {
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b-4 border-primary bg-background px-3">
             <SidebarTrigger />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-bold text-primary" style={{ fontFamily: "Roboto Slab, serif" }}>Centro de Simulación</p>
+              <p className="truncate font-bold text-primary" style={{ fontFamily: "Roboto Slab, serif" }}>Laboratorio de Simulación</p>
               <p className="truncate text-xs italic text-muted-foreground">Facultad de Medicina · UdeA</p>
             </div>
             <div className="hidden sm:flex flex-col items-end text-xs">

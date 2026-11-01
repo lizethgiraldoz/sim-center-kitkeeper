@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedDisponibilidadRouteImport } from './routes/_authenticated/disponibilidad'
+import { Route as AuthenticatedDocentesRouteImport } from './routes/_authenticated/docentes'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedMisSolicitudesRouteImport } from './routes/_authenticated/mis-solicitudes'
 import { Route as AuthenticatedNuevaReservaRouteImport } from './routes/_authenticated/nueva-reserva'
@@ -33,6 +34,11 @@ const AuthenticatedDisponibilidadRoute =
     path: '/disponibilidad',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDocentesRoute = AuthenticatedDocentesRouteImport.update({
+  id: '/docentes',
+  path: '/docentes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInventarioRoute = AuthenticatedInventarioRouteImport.update({
   id: '/inventario',
   path: '/inventario',
@@ -65,6 +71,7 @@ const AuthenticatedSolicitudesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/docentes': typeof AuthenticatedDocentesRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/docentes': typeof AuthenticatedDocentesRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/disponibilidad': typeof AuthenticatedDisponibilidadRoute
+  '/_authenticated/docentes': typeof AuthenticatedDocentesRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/_authenticated/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/disponibilidad'
+    | '/docentes'
     | '/inventario'
     | '/mis-solicitudes'
     | '/nueva-reserva'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/disponibilidad'
+    | '/docentes'
     | '/inventario'
     | '/mis-solicitudes'
     | '/nueva-reserva'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/_authenticated/disponibilidad'
+    | '/_authenticated/docentes'
     | '/_authenticated/inventario'
     | '/_authenticated/mis-solicitudes'
     | '/_authenticated/nueva-reserva'
@@ -148,6 +160,13 @@ declare module '@tanstack/react-router' {
       path: '/disponibilidad'
       fullPath: '/disponibilidad'
       preLoaderRoute: typeof AuthenticatedDisponibilidadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/docentes': {
+      id: '/_authenticated/docentes'
+      path: '/docentes'
+      fullPath: '/docentes'
+      preLoaderRoute: typeof AuthenticatedDocentesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inventario': {
@@ -190,6 +209,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDisponibilidadRoute: typeof AuthenticatedDisponibilidadRoute
+  AuthenticatedDocentesRoute: typeof AuthenticatedDocentesRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedMisSolicitudesRoute: typeof AuthenticatedMisSolicitudesRoute
   AuthenticatedNuevaReservaRoute: typeof AuthenticatedNuevaReservaRoute
@@ -199,6 +219,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDisponibilidadRoute: AuthenticatedDisponibilidadRoute,
+  AuthenticatedDocentesRoute: AuthenticatedDocentesRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedMisSolicitudesRoute: AuthenticatedMisSolicitudesRoute,
   AuthenticatedNuevaReservaRoute: AuthenticatedNuevaReservaRoute,

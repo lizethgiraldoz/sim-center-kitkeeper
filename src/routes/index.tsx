@@ -10,9 +10,9 @@ import logo from "@/assets/logo-udea.png.asset.json";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Centro de Simulación UdeA · Reservas" },
-      { name: "description", content: "Plataforma de reservas del Centro de Simulación, Facultad de Medicina, Universidad de Antioquia." },
-      { property: "og:title", content: "Centro de Simulación UdeA · Reservas" },
+      { title: "Laboratorio de Simulación UdeA · Reservas" },
+      { name: "description", content: "Plataforma de reservas del Laboratorio de Simulación, Facultad de Medicina, Universidad de Antioquia." },
+      { property: "og:title", content: "Laboratorio de Simulación UdeA · Reservas" },
       { property: "og:description", content: "Reservas de espacios, equipos, simuladores e insumos con bloqueo automático de cruces." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -41,7 +41,7 @@ function Index() {
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 bg-muted p-4">
       <div className="text-center space-y-2">
         <img src={logo.url} alt="Universidad de Antioquia" className="h-20 w-auto mx-auto" />
-        <h1 className="text-2xl text-primary">Centro de Simulación</h1>
+        <h1 className="text-2xl text-primary">Laboratorio de Simulación</h1>
         <p className="text-sm italic text-muted-foreground">Facultad de Medicina · Reservas</p>
       </div>
       <Card className="w-full max-w-sm border-t-4 border-t-primary">

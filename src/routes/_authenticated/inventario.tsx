@@ -12,7 +12,7 @@ import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import type { Row } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/inventario")({
-  head: () => ({ meta: [{ title: "Inventario y quirófano · Centro de Simulación UdeA" }] }),
+  head: () => ({ meta: [{ title: "Inventario y quirófano · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
 
