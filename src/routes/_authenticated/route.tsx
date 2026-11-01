@@ -73,7 +73,7 @@ function Shell() {
           <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b-4 border-primary bg-background px-3">
             <SidebarTrigger />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-bold text-primary" style={{ fontFamily: "Roboto Slab, serif" }}>Centro de Simulación</p>
+              <p className="truncate font-bold text-primary" style={{ fontFamily: "Roboto Slab, serif" }}>Laboratorio de Simulación</p>
               <p className="truncate text-xs italic text-muted-foreground">Facultad de Medicina · UdeA</p>
             </div>
             <div className="hidden sm:flex flex-col items-end text-xs">

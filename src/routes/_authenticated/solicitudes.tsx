@@ -16,7 +16,7 @@ import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { RESERVA_SELECT, fmt, hora, useCatalogos, type Row } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/solicitudes")({
-  head: () => ({ meta: [{ title: "Gestión de solicitudes · Centro de Simulación UdeA" }] }),
+  head: () => ({ meta: [{ title: "Gestión de solicitudes · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
 

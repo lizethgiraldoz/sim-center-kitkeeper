@@ -18,7 +18,7 @@ type Row = any;
 type Item = { resource_id: string; detalle: string; cantidad: number; std: number };
 
 export const FACULTADES: Record<string, string[]> = {
-  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "Tecnologías asociadas"],
+  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "Tecnologías"],
   "Facultad de Enfermería": ["Enfermería"],
 };
 export const NOTA_30 = "Nota: Para aulas móviles o equipos, el docente responsable debe estar media hora antes de la práctica.";
@@ -89,7 +89,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       <CardHeader className="border-b bg-primary/5 rounded-t-xl">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="text-xs text-muted-foreground">Universidad de Antioquia · Centro de Simulación</p>
+            <p className="text-xs text-muted-foreground">Universidad de Antioquia · Laboratorio de Simulación</p>
             <CardTitle className="text-primary">Solicitud de reserva</CardTitle>
           </div>
           <p className="text-xs text-muted-foreground text-right">Código: F-CS-01<br />Versión: 01</p>
@@ -259,7 +259,7 @@ export function FormatoPreviewModal({ r, onClose }: { r: Row; onClose: () => voi
           <p><strong>Nota:</strong> Si su reserva es para aulas móviles o equipos, el docente responsable debe estar media hora antes de la práctica.</p>
           <div className="grid grid-cols-2 gap-8 pt-10">
             <div className="border-t border-foreground/60 pt-1 text-center">Firma docente responsable</div>
-            <div className="border-t border-foreground/60 pt-1 text-center">Firma Coordinación Centro de Simulación</div>
+            <div className="border-t border-foreground/60 pt-1 text-center">Firma Coordinación Laboratorio de Simulación</div>
           </div>
           <p className="text-muted-foreground">Estado: {r.status} · Laboratorio de Simulación - Facultad de Medicina - Edificio Andrés Posada Arango - Piso 3 - Tel. 2196043/2196950 simulacionmedicina@udea.edu.co</p>
           <div className="flex gap-2 print:hidden"><Button onClick={() => window.print()}>Imprimir / Guardar PDF</Button><Button variant="outline" onClick={onClose}>Cerrar</Button></div>

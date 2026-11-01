@@ -6,7 +6,7 @@ import { Titulo } from "@/components/SoloAdmin";
 import { useCatalogos } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/nueva-reserva")({
-  head: () => ({ meta: [{ title: "Nueva reserva · Centro de Simulación UdeA" }] }),
+  head: () => ({ meta: [{ title: "Nueva reserva · Laboratorio de Simulación UdeA" }] }),
   component: Page,
 });
 

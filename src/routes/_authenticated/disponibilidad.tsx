@@ -9,7 +9,7 @@ import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { hora, type Row } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/disponibilidad")({
-  head: () => ({ meta: [{ title: "Disponibilidad y bloqueos · Centro de Simulación UdeA" }] }),
+  head: () => ({ meta: [{ title: "Disponibilidad y bloqueos · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
 

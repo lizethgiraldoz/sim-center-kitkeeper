@@ -79,8 +79,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Centro de Simulación UdeA" },
-      { name: "description", content: "Reservas del Centro de Simulación, Facultad de Medicina UdeA" },
+      { title: "Laboratorio de Simulación UdeA" },
+      { name: "description", content: "Reservas del Laboratorio de Simulación, Facultad de Medicina UdeA" },
             { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
