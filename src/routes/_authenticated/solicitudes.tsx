@@ -111,10 +111,10 @@ const SALIDA = [{ v: "AUTORIZADA", l: "Autorizada salida" }, { v: "ENTREGADO", l
 
 function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void }) {
   const set = async (campo: string, valor: string, detalle?: string) => {
-    const { error } = await supabase.rpc("actualizar_seguimiento", { _id: r.id, _campo: campo, _valor: valor, _detalle: detalle });
+    const { error } = await supabase.rpc("actualizar_seguimiento", { _id: r.id, _campo: campo, _valor: valor, ...(detalle ? { _detalle: detalle } : {}) });
     if (error) toast.error(error.message); else { toast.success("Seguimiento actualizado"); onChanged(); }
   };
-  const actual = MONTAJE.find((m) => m.v === r.estado_montaje) ?? MONTAJE[0];
+  const actual = MONTAJE.find((m) => m.v === r.estado_montaje) ?? MONTAJE[0]!;
   return (
     <div className="mt-2 space-y-2 rounded-lg border bg-muted/40 p-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
