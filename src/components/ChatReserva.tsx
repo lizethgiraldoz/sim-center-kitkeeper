@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fmt, useSessionUser } from "@/lib/app-data";
+import { notifyReservationPush } from "@/lib/push.functions";
 
 /** Chat ligado a una sola reserva; solo se renderiza dentro del detalle de la solicitud. */
 export function ChatReserva({ reservationId, teacherId }: { reservationId: string; teacherId: string }) {
@@ -36,6 +37,7 @@ export function ChatReserva({ reservationId, teacherId }: { reservationId: strin
     setTxt("");
     await supabase.from("reservation_messages").insert({ reservation_id: reservationId, mensaje: m });
     q.refetch();
+    void notifyReservationPush({ data: { reservationId, title: "Nuevo mensaje en tu reserva", body: m.slice(0, 120) } }).catch(() => {});
   };
 
   return (
