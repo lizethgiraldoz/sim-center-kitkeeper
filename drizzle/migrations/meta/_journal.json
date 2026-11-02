@@ -43,6 +43,13 @@
       "when": 1793371371260,
       "tag": "0005_verificacion_docentes_tecnicos_subespacios",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793591088085,
+      "tag": "0006_push_tokens_reprogramar_recurrentes",
+      "breakpoints": true
     }
   ]
 }

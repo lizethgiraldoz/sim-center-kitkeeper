@@ -239,6 +239,27 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reservation_audit: {
         Row: {
           action: string
@@ -761,6 +782,10 @@ export type Database = {
         }
         Returns: string
       }
+      crear_reservas_recurrentes: {
+        Args: { _f: Json; _semanas: number }
+        Returns: Json
+      }
       crear_solicitud_formulario: { Args: { _f: Json }; Returns: Json }
       dashboard_bloqueos: {
         Args: never
@@ -852,6 +877,10 @@ export type Database = {
           name: string
           reservas: number
         }[]
+      }
+      reprogramar_reserva: {
+        Args: { _ends_at: string; _id: string; _starts_at: string }
+        Returns: undefined
       }
       verificar_docente: {
         Args: { _estado: string; _id: string }
