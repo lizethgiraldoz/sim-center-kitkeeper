@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { FilePlus, ListChecks, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut } from "lucide-react";
+import { FilePlus, ListChecks, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell } from "lucide-react";
+import { toast } from "sonner";
+import { enablePush } from "@/lib/push";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
@@ -42,6 +44,22 @@ function Shell() {
     await supabase.auth.signOut();
     navigate({ to: "/", replace: true });
   };
+  const activarNotificaciones = async () => {
+    const res = await enablePush();
+    if (res.status === "registered") {
+      const { data: u } = await supabase.auth.getUser();
+      if (u.user) await supabase.from("push_tokens").upsert({ user_id: u.user.id, token: res.token }, { onConflict: "token" });
+      toast.success("Notificaciones activadas en este dispositivo");
+    } else if (res.status === "open-in-new-tab") {
+      toast.info("Abre la aplicación en su propia pestaña (no dentro de la vista previa) para activar las notificaciones.");
+    } else if (res.status === "not-configured") {
+      toast.error("Las notificaciones aún no están configuradas en el sistema.");
+    } else if (res.status === "unsupported") {
+      toast.error("Este navegador no admite notificaciones push.");
+    } else {
+      toast.error("Permiso de notificaciones denegado. Actívalo en la configuración del navegador.");
+    }
+  };
   const groups = [{ label: "Docente", items: DOCENTE }, ...(me?.isAdmin ? [{ label: "Administración", items: ADMIN }] : [])];
 
   return (
@@ -81,6 +99,7 @@ function Shell() {
               <span className="truncate max-w-48">{me?.email}</span>
               <Badge variant="secondary" className="text-[10px]">{me?.isAdmin ? "Administrador revisor" : "Docente"}</Badge>
             </div>
+            <Button size="sm" variant="ghost" onClick={activarNotificaciones} title="Activar notificaciones en este dispositivo" aria-label="Activar notificaciones"><Bell className="h-4 w-4" /><span className="hidden md:inline">Notificaciones</span></Button>
             <Button size="sm" variant="outline" onClick={salir}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Salir</span></Button>
           </header>
           <main className="flex-1 p-4 md:p-6"><Outlet /></main>
