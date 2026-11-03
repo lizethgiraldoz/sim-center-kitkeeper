@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { FormatoPreviewModal, NOTA_30 } from "@/components/FormularioReserva";
+import { RelojHora } from "@/components/RelojHora";
 import { supabase } from "@/integrations/supabase/client";
 import { fmt, hora, type Row } from "@/lib/app-data";
 import { toast } from "sonner";
@@ -11,6 +17,7 @@ import { ChatReserva } from "@/components/ChatReserva";
 
 export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void }) {
   const [print, setPrint] = useState(false);
+  const [repro, setRepro] = useState(false);
   const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
   const [ext, setExt] = useState({ responsible_name: "", responsible_document: "", responsible_phone: "", destination: "", purpose: "" });
   const labels: Record<string, string> = { responsible_name: "Responsable", responsible_document: "Documento", responsible_phone: "Teléfono", destination: "Destino", purpose: "Propósito" };
@@ -60,11 +67,63 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
               </div>
             )}
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
-            <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
+              {["SOLICITADA", "APROBADA"].includes(r.status) && <Button variant="outline" size="sm" onClick={() => setRepro(true)}>Reprogramar</Button>}
+            </div>
             {print && <FormatoPreviewModal r={r} onClose={() => setPrint(false)} />}
           </div>
         </DialogContent>
       </Dialog>
+      {repro && <ReprogramarModal r={r} onClose={() => setRepro(false)} onDone={() => { setRepro(false); onChanged(); }} />}
     </>
+  );
+}
+
+function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void; onDone: () => void }) {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const [dia, setDia] = useState<Date>(new Date(r.starts_at));
+  const [ini, setIni] = useState(() => hora(r.starts_at));
+  const [fin, setFin] = useState(() => hora(r.ends_at));
+  const [busy, setBusy] = useState(false);
+  const ymd = format(dia, "yyyy-MM-dd");
+  const iso = (t: string) => new Date(`${ymd}T${t}:00-05:00`).toISOString();
+
+  const aplicar = async () => {
+    setBusy(true);
+    const { error } = await supabase.rpc("reprogramar_reserva", { _id: r.id, _starts_at: iso(ini), _ends_at: iso(fin) });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "REPROGRAMADA" });
+    toast.success("Reserva reprogramada");
+    onDone();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Reprogramar reserva</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">{r.activities?.name} · actualmente {fmt(r.starts_at)} – {hora(r.ends_at)}</p>
+        <div className="space-y-3">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="h-4 w-4" />{format(dia, "PPP", { locale: es })}</Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" locale={es} selected={dia} onSelect={(x) => x && setDia(x)} disabled={(x) => x < hoy} className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1 text-xs font-medium text-muted-foreground block"><span>Hora inicio</span><RelojHora value={ini} onChange={setIni} /></label>
+            <label className="space-y-1 text-xs font-medium text-muted-foreground block"><span>Hora fin (máx. 19:00)</span><RelojHora value={fin} onChange={setFin} /></label>
+          </div>
+          <p className="text-xs text-muted-foreground">Se valida que el espacio esté libre en el nuevo horario y que no supere las 19:00 hrs.</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Volver</Button>
+          <Button disabled={busy || fin <= ini} onClick={aplicar}>Confirmar nuevo horario</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
