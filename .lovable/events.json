@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.reservation_approved": {
+      "event_schema_version": 1,
+      "description": "Un administrador confirmó la aprobación definitiva de una reserva con espacio asignado.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "programa"
+        ],
+        "properties": {
+          "programa": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.reservation_status_changed": {
+      "event_schema_version": 1,
+      "description": "Una reserva cambió de estado: rechazada por el administrador, cancelada por el docente o reprogramada.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "RECHAZADA",
+              "CANCELADA",
+              "REPROGRAMADA"
+            ]
+          }
+        }
+      }
+    },
+    "project.teacher_signup": {
+      "event_schema_version": 1,
+      "description": "Un docente completó el registro de su cuenta en la página de ingreso.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    }
+  }
+}
