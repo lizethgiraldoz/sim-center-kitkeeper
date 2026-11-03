@@ -1,14 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
-const appId = import.meta.env.VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID as string | undefined;
-const vapidKey = import.meta.env.VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY as string | undefined;
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY as string | undefined,
-  projectId: import.meta.env.VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_PROJECT_ID as string | undefined,
-  appId,
-  messagingSenderId: appId?.split(":")[1] ?? "",
-};
+const env = import.meta.env;
+const appId = env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_APP_ID"] as string | undefined;
+const vapidKey = env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_VAPID_KEY"] as string | undefined;
+const apiKey = env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_WEB_API_KEY"] as string | undefined;
+const projectId = env["VITE_LOVABLE_CONNECTOR_FIREBASE_MESSAGING_PROJECT_ID"] as string | undefined;
 
 export type PushResult =
   | { status: "registered"; token: string }
@@ -16,7 +13,8 @@ export type PushResult =
 
 // Llamar solo desde un manejador de clic: los navegadores ignoran la solicitud de permiso sin gesto del usuario.
 export async function enablePush(): Promise<PushResult> {
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !appId || !vapidKey || !firebaseConfig.messagingSenderId) {
+  const messagingSenderId = appId?.split(":")[1] ?? "";
+  if (!apiKey || !projectId || !appId || !vapidKey || !messagingSenderId) {
     return { status: "not-configured" };
   }
   if (!("Notification" in window) || !(await isSupported())) {
@@ -31,7 +29,8 @@ export async function enablePush(): Promise<PushResult> {
     return { status: "denied" };
   }
 
-  const query = new URLSearchParams(firebaseConfig as Record<string, string>).toString();
+  const firebaseConfig = { apiKey, projectId, appId, messagingSenderId };
+  const query = new URLSearchParams(firebaseConfig).toString();
   const serviceWorkerRegistration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${query}`);
   const messaging = getMessaging(initializeApp(firebaseConfig));
   const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration });

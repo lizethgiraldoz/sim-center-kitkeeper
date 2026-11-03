@@ -76,9 +76,10 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
       ...(salida ? { salida: { ...ext, departure_at: isoLocal(ext.departure_at), return_at: isoLocal(ext.return_at), accepts_responsibility: true } } : {}) };
     if (semanas > 1) {
-      const { data: res, error } = await supabase.rpc("crear_reservas_recurrentes", { _f: f, _semanas: semanas });
+      const { data, error } = await supabase.rpc("crear_reservas_recurrentes", { _f: f, _semanas: semanas });
       if (error) { setErr(error.message); return; }
-      const errores = (res?.errores ?? []) as string[];
+      const res = data as { creadas?: number; errores?: string[] } | null;
+      const errores = res?.errores ?? [];
       if (!res?.creadas) { setErr(`No se pudo crear ninguna solicitud. ${errores[0] ?? ""}`); return; }
       onDone(`Se crearon ${res.creadas} solicitudes (una por semana).${errores.length ? ` Sin cupo en: ${errores.join(" · ")}` : ""} El administrador asignará el espacio al revisarlas.`);
       return;
