@@ -14,6 +14,7 @@ import { DetalleReserva } from "@/components/DetalleReserva";
 import { ModalAprobacion } from "@/components/ModalAprobacion";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { RESERVA_SELECT, fmt, hora, useCatalogos, type Row } from "@/lib/app-data";
+import { notifyReservationPush } from "@/lib/push.functions";
 
 export const Route = createFileRoute("/_authenticated/solicitudes")({
   head: () => ({ meta: [{ title: "Gestión de solicitudes · Laboratorio de Simulación UdeA" }] }),
@@ -79,7 +80,7 @@ function Page() {
         <DialogContent>
           <DialogHeader><DialogTitle>Rechazar solicitud</DialogTitle></DialogHeader>
           <Textarea placeholder="Motivo de la decisión (se notificará al docente)" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-          <DialogFooter><Button variant="destructive" disabled={!motivo.trim()} onClick={async () => { if (await run(supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }), "Reserva rechazada")) setRechazo(null); }}>Confirmar rechazo</Button></DialogFooter>
+          <DialogFooter><Button variant="destructive" disabled={!motivo.trim()} onClick={async () => { if (await run(supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }), "Reserva rechazada")) { window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "RECHAZADA" }); void notifyReservationPush({ data: { reservationId: rechazo.id, title: "Reserva rechazada", body: `${rechazo.activities?.name ?? "Tu reserva"} fue rechazada. Motivo: ${motivo.trim().slice(0, 100)}` } }).catch(() => {}); setRechazo(null); } }}>Confirmar rechazo</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

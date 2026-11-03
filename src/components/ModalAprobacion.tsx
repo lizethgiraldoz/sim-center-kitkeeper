@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { fmt, hora, type Row } from "@/lib/app-data";
+import { notifyReservationPush } from "@/lib/push.functions";
 
 const H0 = 7, H1 = 19;
 const horas = (iso: string) => {
@@ -44,6 +45,8 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
     const { error } = await supabase.rpc("aprobar_reserva_con_espacio", { _id: r.id, _space_id: space });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
+    window.__lovableEvents?.track?.("project.reservation_approved", { programa: r.programa ?? "desconocido" });
+    void notifyReservationPush({ data: { reservationId: r.id, title: "Reserva aprobada", body: `${r.activities?.name ?? "Tu reserva"} fue aprobada para ${fmt(r.starts_at)}.` } }).catch(() => {});
     toast.success("Aprobación definitiva registrada");
     onDone();
   };

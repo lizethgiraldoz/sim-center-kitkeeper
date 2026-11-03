@@ -32,7 +32,7 @@ function Page() {
   const [just, setJust] = useState("");
   const cancelar = async () => {
     const { error } = await supabase.rpc("cancelar_reserva_justificada", { _id: canc.id, _justificacion: just.trim() });
-    if (error) toast.error(error.message); else { toast.success("Reserva cancelada"); setCanc(null); q.refetch(); }
+    if (error) toast.error(error.message); else { window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "CANCELADA" }); toast.success("Reserva cancelada"); setCanc(null); q.refetch(); }
   };
   const rows = q.data ?? [];
   return (

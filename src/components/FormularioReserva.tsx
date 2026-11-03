@@ -37,6 +37,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
   });
   const [d, setD] = useState({ activity: "", date: new Date(Date.now() + 86400000), start: "08:00", end: "12:00", notes: "" });
   const [salida, setSalida] = useState(false);
+  const [semanas, setSemanas] = useState(1);
   const [ext, setExt] = useState(EXT0);
   const [items, setItems] = useState<Item[]>([]);
   const [err, setErr] = useState("");
@@ -71,11 +72,19 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       setErr("Complete la Solicitud de Préstamo y Salida Externa (destino, responsable, transporte, salida y retorno)."); return;
     }
     if (sinStock.length) { setErr(`El recurso ${sinStock[0]?.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
-    const { error } = await supabase.rpc("crear_solicitud_formulario", {
-      _f: { ...h, activity_id: d.activity, starts_at: iso(d.start), ends_at: iso(d.end), notes: d.notes,
-        items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
-        ...(salida ? { salida: { ...ext, departure_at: isoLocal(ext.departure_at), return_at: isoLocal(ext.return_at), accepts_responsibility: true } } : {}) },
-    });
+    const f = { ...h, activity_id: d.activity, starts_at: iso(d.start), ends_at: iso(d.end), notes: d.notes,
+      items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
+      ...(salida ? { salida: { ...ext, departure_at: isoLocal(ext.departure_at), return_at: isoLocal(ext.return_at), accepts_responsibility: true } } : {}) };
+    if (semanas > 1) {
+      const { data, error } = await supabase.rpc("crear_reservas_recurrentes", { _f: f, _semanas: semanas });
+      if (error) { setErr(error.message); return; }
+      const res = data as { creadas?: number; errores?: string[] } | null;
+      const errores = res?.errores ?? [];
+      if (!res?.creadas) { setErr(`No se pudo crear ninguna solicitud. ${errores[0] ?? ""}`); return; }
+      onDone(`Se crearon ${res.creadas} solicitudes (una por semana).${errores.length ? ` Sin cupo en: ${errores.join(" · ")}` : ""} El administrador asignará el espacio al revisarlas.`);
+      return;
+    }
+    const { error } = await supabase.rpc("crear_solicitud_formulario", { _f: f });
     if (error) { setErr(error.message); return; }
     onDone("Solicitud enviada. El administrador asignará el espacio al revisarla.");
   };
@@ -128,7 +137,11 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
           </L>
           <L t="Hora inicio"><RelojHora value={d.start} onChange={(v) => setD({ ...d, start: v })} /></L>
           <L t="Hora fin (máx. 19:00)"><RelojHora value={d.end} onChange={(v) => setD({ ...d, end: v })} /></L>
+          <L t="Repetir (reserva recurrente)"><select className={sel} value={semanas} onChange={(e) => setSemanas(+e.target.value)}>
+            {[1, 2, 3, 4, 6, 8, 10, 12, 16].map((n) => <option key={n} value={n}>{n === 1 ? "No repetir" : `Cada semana, ${n} semanas`}</option>)}
+          </select></L>
         </div>
+        {semanas > 1 && <p className="text-xs rounded-lg bg-accent text-accent-foreground px-3 py-2">Se creará una solicitud por semana, el mismo día y hora, durante {semanas} semanas. Cada una se aprueba por separado.</p>}
         <p className="text-xs text-muted-foreground">El espacio o laboratorio lo asigna el administrador al revisar la solicitud.</p>
 
         <div>
