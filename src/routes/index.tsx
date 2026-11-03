@@ -34,6 +34,7 @@ function Index() {
       ? await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin } })
       : await supabase.auth.signInWithPassword({ email, password: pw });
     if (error) return setMsg(error.message);
+    if (signup) window.__lovableEvents?.track?.("project.teacher_signup", {});
     if (data.session) { qc.clear(); navigate({ to: "/nueva-reserva" }); }
     else if (signup) setMsg("Revisa tu correo para confirmar la cuenta.");
   };
