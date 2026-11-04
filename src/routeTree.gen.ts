@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authenticated/asistencia'
 import { Route as AuthenticatedDisponibilidadRouteImport } from './routes/_authenticated/disponibilidad'
 import { Route as AuthenticatedDocentesRouteImport } from './routes/_authenticated/docentes'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
@@ -27,6 +28,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAsistenciaRoute = AuthenticatedAsistenciaRouteImport.update({
+  id: '/asistencia',
+  path: '/asistencia',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDisponibilidadRoute =
   AuthenticatedDisponibilidadRouteImport.update({
@@ -70,6 +76,7 @@ const AuthenticatedSolicitudesRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/asistencia': typeof AuthenticatedAsistenciaRoute
   '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
   '/docentes': typeof AuthenticatedDocentesRoute
   '/inventario': typeof AuthenticatedInventarioRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/asistencia': typeof AuthenticatedAsistenciaRoute
   '/disponibilidad': typeof AuthenticatedDisponibilidadRoute
   '/docentes': typeof AuthenticatedDocentesRoute
   '/inventario': typeof AuthenticatedInventarioRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_authenticated/asistencia': typeof AuthenticatedAsistenciaRoute
   '/_authenticated/disponibilidad': typeof AuthenticatedDisponibilidadRoute
   '/_authenticated/docentes': typeof AuthenticatedDocentesRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/asistencia'
     | '/disponibilidad'
     | '/docentes'
     | '/inventario'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/asistencia'
     | '/disponibilidad'
     | '/docentes'
     | '/inventario'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_authenticated/asistencia'
     | '/_authenticated/disponibilidad'
     | '/_authenticated/docentes'
     | '/_authenticated/inventario'
@@ -154,6 +166,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/asistencia': {
+      id: '/_authenticated/asistencia'
+      path: '/asistencia'
+      fullPath: '/asistencia'
+      preLoaderRoute: typeof AuthenticatedAsistenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/disponibilidad': {
       id: '/_authenticated/disponibilidad'
@@ -208,6 +227,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAsistenciaRoute: typeof AuthenticatedAsistenciaRoute
   AuthenticatedDisponibilidadRoute: typeof AuthenticatedDisponibilidadRoute
   AuthenticatedDocentesRoute: typeof AuthenticatedDocentesRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
@@ -218,6 +238,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAsistenciaRoute: AuthenticatedAsistenciaRoute,
   AuthenticatedDisponibilidadRoute: AuthenticatedDisponibilidadRoute,
   AuthenticatedDocentesRoute: AuthenticatedDocentesRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
