@@ -37,7 +37,9 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
   });
   const [d, setD] = useState({ activity: "", date: new Date(Date.now() + 86400000), start: "08:00", end: "12:00", notes: "" });
   const [salida, setSalida] = useState(false);
-  const [semanas, setSemanas] = useState(1);
+  const [modo, setModo] = useState<"NO" | "MISMO" | "DISTINTO">("NO");
+  const [semanas, setSemanas] = useState(4);
+  const [extras, setExtras] = useState<{ fecha: string; inicio: string; fin: string }[]>([]);
   const [ext, setExt] = useState(EXT0);
   const [items, setItems] = useState<Item[]>([]);
   const [err, setErr] = useState("");
@@ -75,7 +77,22 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
     const f = { ...h, activity_id: d.activity, starts_at: iso(d.start), ends_at: iso(d.end), notes: d.notes,
       items: items.map((i) => ({ resource_id: i.resource_id, cantidad: i.cantidad })),
       ...(salida ? { salida: { ...ext, departure_at: isoLocal(ext.departure_at), return_at: isoLocal(ext.return_at), accepts_responsibility: true } } : {}) };
-    if (semanas > 1) {
+    if (modo === "DISTINTO" && extras.length) {
+      for (const x of extras) {
+        if (!x.fecha || !x.inicio || !x.fin || x.fin <= x.inicio) { setErr(`Revisa la sesión del ${x.fecha || "(sin fecha)"}: la hora fin debe ser mayor que la de inicio.`); return; }
+        if (x.fin > "19:00") { setErr(`La sesión del ${x.fecha} supera el límite de las 19:00.`); return; }
+      }
+      const sesiones = [{ s: f.starts_at, e: f.ends_at, l: ymd }, ...extras.map((x) => ({ s: new Date(`${x.fecha}T${x.inicio}:00-05:00`).toISOString(), e: new Date(`${x.fecha}T${x.fin}:00-05:00`).toISOString(), l: x.fecha }))];
+      let creadas = 0; const errores: string[] = [];
+      for (const ses of sesiones) {
+        const { error } = await supabase.rpc("crear_solicitud_formulario", { _f: { ...f, starts_at: ses.s, ends_at: ses.e } });
+        if (error) errores.push(`${ses.l}: ${error.message}`); else creadas++;
+      }
+      if (!creadas) { setErr(`No se pudo crear ninguna solicitud. ${errores[0] ?? ""}`); return; }
+      onDone(`Se crearon ${creadas} solicitudes.${errores.length ? ` No se crearon: ${errores.join(" · ")}` : ""}`);
+      return;
+    }
+    if (modo === "MISMO" && semanas > 1) {
       const { data, error } = await supabase.rpc("crear_reservas_recurrentes", { _f: f, _semanas: semanas });
       if (error) { setErr(error.message); return; }
       const res = data as { creadas?: number; errores?: string[] } | null;
@@ -137,11 +154,35 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
           </L>
           <L t="Hora inicio"><RelojHora value={d.start} onChange={(v) => setD({ ...d, start: v })} /></L>
           <L t="Hora fin (máx. 19:00)"><RelojHora value={d.end} onChange={(v) => setD({ ...d, end: v })} /></L>
-          <L t="Repetir (reserva recurrente)"><select className={sel} value={semanas} onChange={(e) => setSemanas(+e.target.value)}>
-            {[1, 2, 3, 4, 6, 8, 10, 12, 16].map((n) => <option key={n} value={n}>{n === 1 ? "No repetir" : `Cada semana, ${n} semanas`}</option>)}
+          <L t="Repetir (reserva recurrente)"><select className={sel} value={modo} onChange={(e) => { const m = e.target.value as typeof modo; setModo(m); if (m === "MISMO" && semanas < 2) setSemanas(4); }}>
+            <option value="NO">No repetir</option>
+            <option value="MISMO">Mismo horario cada semana</option>
+            <option value="DISTINTO">Otras fechas u horarios</option>
           </select></L>
         </div>
-        {semanas > 1 && <p className="text-xs rounded-lg bg-accent text-accent-foreground px-3 py-2">Se creará una solicitud por semana, el mismo día y hora, durante {semanas} semanas. Cada una se aprueba por separado.</p>}
+        {modo === "MISMO" && <div className="flex flex-wrap items-center gap-2 text-sm rounded-lg bg-accent text-accent-foreground px-3 py-2">
+          Repetir el mismo día y hora durante
+          <Input type="number" min={2} max={16} className="w-20 h-8 bg-background" value={semanas} onChange={(e) => setSemanas(Math.max(2, Math.min(16, +e.target.value || 2)))} />
+          semanas (máx. 16). Cada solicitud se aprueba por separado.
+        </div>}
+        {modo === "DISTINTO" && <div className="space-y-2 rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">La primera sesión es la fecha y hora de arriba. Agrega las demás sesiones con la fecha y el horario que necesites.</p>
+          {extras.map((x, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <Input type="date" className="w-40" min={format(hoy, "yyyy-MM-dd")} value={x.fecha} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, fecha: e.target.value } : y))} />
+              <Input type="time" className="w-28" value={x.inicio} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, inicio: e.target.value } : y))} />
+              a
+              <Input type="time" className="w-28" max="19:00" value={x.fin} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, fin: e.target.value } : y))} />
+              <Button type="button" size="sm" variant="ghost" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>Quitar</Button>
+            </div>
+          ))}
+          <Button type="button" size="sm" variant="outline" disabled={extras.length >= 15} onClick={() => {
+            const last = extras.at(-1);
+            const base = last ? new Date(`${last.fecha}T12:00:00`) : new Date(d.date);
+            base.setDate(base.getDate() + 7);
+            setExtras([...extras, { fecha: format(base, "yyyy-MM-dd"), inicio: last?.inicio ?? d.start, fin: last?.fin ?? d.end }]);
+          }}>+ Agregar sesión</Button>
+        </div>}
         <p className="text-xs text-muted-foreground">El espacio o laboratorio lo asigna el administrador al revisar la solicitud.</p>
 
         <div>
