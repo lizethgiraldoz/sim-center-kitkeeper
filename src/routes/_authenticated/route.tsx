@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { FilePlus, ListChecks, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell } from "lucide-react";
+import { FilePlus, ListChecks, UserX, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { enablePush } from "@/lib/push";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,7 @@ const DOCENTE = [
 const ADMIN = [
   { title: "Disponibilidad y bloqueos", url: "/disponibilidad", icon: CalendarRange },
   { title: "Gestión de solicitudes", url: "/solicitudes", icon: ClipboardCheck },
+  { title: "Asistencia y montaje", url: "/asistencia", icon: UserX },
   { title: "Verificación de docentes", url: "/docentes", icon: UserCheck },
   { title: "Inventario y quirófano", url: "/inventario", icon: Boxes },
   { title: "Estadísticas", url: "/reportes", icon: BarChart3 },
