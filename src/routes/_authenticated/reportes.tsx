@@ -51,6 +51,11 @@ function Page() {
   const progDetalle = count(activas.filter((r) => (r.programa ?? "").toLowerCase().includes(vistaProg.toLowerCase())), (r) => r.activities?.name ?? "—", dur).map((x) => ({ ...x, value: +x.value.toFixed(1) }));
   const datosProg = vistaProg === "PORCENTAJE" ? progPct : progDetalle;
   const estados = count(rs, (r) => r.status);
+  const asist = count(rs.filter((r) => r.asistencia || (["APROBADA", "EN_CURSO"].includes(r.status) && new Date(r.ends_at) < now)),
+    (r) => r.asistencia === "ASISTIO" ? "Asistió" : r.asistencia === "NO_ASISTIO" ? "No asistió" : "Sin registrar");
+  const ML: Record<string, string> = { PENDIENTE: "Pendiente", EN_MONTAJE: "En montaje", LISTO: "Listo", FALTA_EQUIPO: "Falta equipo" };
+  const montaje = count(activas, (r) => ML[r.estado_montaje] ?? "Pendiente");
+  const inasist = rs.filter((r) => r.asistencia === "NO_ASISTIO").length;
   const pico = Array.from({ length: 13 }, (_, i) => i + 7).map((h) => ({
     name: `${h}:00`, value: rs.filter((r) => r.status !== "CANCELADA" && horaB(r.starts_at) <= h && horaB(r.ends_at) + (new Date(r.ends_at).getMinutes() ? 1 : 0) > h).length,
   }));
@@ -91,6 +96,16 @@ function Page() {
             <PieChart><Pie data={estados} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
               {estados.map((e) => <Cell key={e.name} fill={ESTADO_COLOR[e.name] ?? "var(--chart-2)"} />)}</Pie><Tooltip /><Legend /></PieChart>
           </ResponsiveContainer></CardContent></Card>
+        <Card className="rounded-xl shadow-sm"><CardHeader><CardTitle className="text-base">Asistencia de docentes</CardTitle></CardHeader>
+          <CardContent className="h-72">{asist.length === 0 ? <p className="text-sm text-muted-foreground">Sin registros de asistencia en el periodo.</p> : <ResponsiveContainer>
+            <PieChart><Pie data={asist} dataKey="value" nameKey="name" innerRadius={60} outerRadius={95} paddingAngle={3}>
+              {asist.map((e) => <Cell key={e.name} fill={e.name === "Asistió" ? "var(--success)" : e.name === "No asistió" ? "var(--destructive)" : "var(--muted-foreground)"} />)}</Pie><Tooltip /><Legend /></PieChart>
+          </ResponsiveContainer>}</CardContent></Card>
+        <Card className="rounded-xl shadow-sm"><CardHeader><CardTitle className="text-base">Montaje de prácticas</CardTitle></CardHeader>
+          <CardContent className="h-72">{montaje.length === 0 ? <p className="text-sm text-muted-foreground">Sin prácticas aprobadas en el periodo.</p> : <ResponsiveContainer>
+            <BarChart data={montaje}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis allowDecimals={false} fontSize={11} /><Tooltip />
+              <Bar dataKey="value" name="Prácticas" radius={[8, 8, 0, 0]}>{montaje.map((_, i) => <Cell key={i} fill={VERDES[i % 5]} />)}</Bar></BarChart>
+          </ResponsiveContainer>}</CardContent></Card>
         <Card className="rounded-xl shadow-sm lg:col-span-2"><CardHeader><CardTitle className="text-base">Horas pico de demanda</CardTitle></CardHeader>
           <CardContent className="h-64"><ResponsiveContainer>
             <LineChart data={pico}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" fontSize={11} /><YAxis allowDecimals={false} fontSize={11} /><Tooltip />
