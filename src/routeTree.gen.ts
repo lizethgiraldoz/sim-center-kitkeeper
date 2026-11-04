@@ -19,6 +19,7 @@ import { Route as AuthenticatedMisSolicitudesRouteImport } from './routes/_authe
 import { Route as AuthenticatedNuevaReservaRouteImport } from './routes/_authenticated/nueva-reserva'
 import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
 import { Route as AuthenticatedSolicitudesRouteImport } from './routes/_authenticated/solicitudes'
+import { Route as ApiPublicRecordatorioMontajeRouteImport } from './routes/api/public/recordatorio-montaje'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +74,12 @@ const AuthenticatedSolicitudesRoute =
     path: '/solicitudes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicRecordatorioMontajeRoute =
+  ApiPublicRecordatorioMontajeRouteImport.update({
+    id: '/api/public/recordatorio-montaje',
+    path: '/api/public/recordatorio-montaje',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/solicitudes': typeof AuthenticatedSolicitudesRoute
+  '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -95,6 +103,7 @@ export interface FileRoutesByTo {
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/solicitudes': typeof AuthenticatedSolicitudesRoute
+  '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -108,6 +117,7 @@ export interface FileRoutesById {
   '/_authenticated/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
   '/_authenticated/reportes': typeof AuthenticatedReportesRoute
   '/_authenticated/solicitudes': typeof AuthenticatedSolicitudesRoute
+  '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/nueva-reserva'
     | '/reportes'
     | '/solicitudes'
+    | '/api/public/recordatorio-montaje'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/nueva-reserva'
     | '/reportes'
     | '/solicitudes'
+    | '/api/public/recordatorio-montaje'
   id:
     | '__root__'
     | '/'
@@ -144,11 +156,13 @@ export interface FileRouteTypes {
     | '/_authenticated/nueva-reserva'
     | '/_authenticated/reportes'
     | '/_authenticated/solicitudes'
+    | '/api/public/recordatorio-montaje'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiPublicRecordatorioMontajeRoute: typeof ApiPublicRecordatorioMontajeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -223,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSolicitudesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/recordatorio-montaje': {
+      id: '/api/public/recordatorio-montaje'
+      path: '/api/public/recordatorio-montaje'
+      fullPath: '/api/public/recordatorio-montaje'
+      preLoaderRoute: typeof ApiPublicRecordatorioMontajeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -254,6 +275,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiPublicRecordatorioMontajeRoute: ApiPublicRecordatorioMontajeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
