@@ -12,6 +12,7 @@ import { EstadoBadge } from "@/components/EstadoBadge";
 import { useNoLeidos } from "@/lib/unread";
 import { DetalleReserva } from "@/components/DetalleReserva";
 import { Titulo } from "@/components/SoloAdmin";
+import { notifyReservationPush } from "@/lib/push.functions";
 import { RESERVA_SELECT, fmt, hora, useSessionUser, type Row } from "@/lib/app-data";
 
 export const Route = createFileRoute("/_authenticated/mis-solicitudes")({
@@ -32,7 +33,7 @@ function Page() {
   const [just, setJust] = useState("");
   const cancelar = async () => {
     const { error } = await supabase.rpc("cancelar_reserva_justificada", { _id: canc.id, _justificacion: just.trim() });
-    if (error) toast.error(error.message); else { window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "CANCELADA" }); toast.success("Reserva cancelada"); setCanc(null); q.refetch(); }
+    if (error) toast.error(error.message); else { window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "CANCELADA" }); void notifyReservationPush({ data: { reservationId: canc.id, title: "Reserva cancelada", body: `${canc.activities?.name ?? "Una reserva"} (${fmt(canc.starts_at)}) fue cancelada. Motivo: ${just.trim().slice(0, 100)}` } }).catch(() => {}); toast.success("Reserva cancelada"); setCanc(null); q.refetch(); }
   };
   const rows = q.data ?? [];
   return (
