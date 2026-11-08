@@ -61,6 +61,7 @@ export const notifyReservationPush = createServerFn({ method: "POST" })
             token,
             notification: { title: data.title, body: data.body },
             data: { path: "/mis-solicitudes" },
+            webpush: { headers: { Urgency: "high", TTL: "86400" }, notification: { icon: "/favicon.png", requireInteraction: true } },
           },
         }),
       });
@@ -71,4 +72,33 @@ export const notifyReservationPush = createServerFn({ method: "POST" })
     }
     if (stale.length) await supabaseAdmin.from("push_tokens").delete().in("token", stale);
     return { sent };
+  });
+
+// Envía una notificación de prueba solo a los dispositivos de quien la pide.
+export const sendTestPush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: tokens } = await context.supabase.from("push_tokens").select("token").eq("user_id", context.userId);
+    const list = (tokens ?? []).map((t) => t.token);
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    const connectionApiKey = process.env["FIREBASE_MESSAGING_API_KEY"];
+    if (!apiKey || !connectionApiKey || !list.length) return { sent: 0, devices: list.length };
+    let sent = 0;
+    for (const token of list) {
+      const res = await fetch(`${GATEWAY_URL}/v1/projects/_/messages:send`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "X-Connection-Api-Key": connectionApiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: { title: "Notificaciones activadas", body: "Así se verán los avisos del Laboratorio de Simulación." },
+            data: { path: "/mis-solicitudes" },
+            webpush: { headers: { Urgency: "high" }, notification: { icon: "/favicon.png" } },
+          },
+        }),
+      });
+      if (res.ok) sent++;
+      else console.error(`FCM test failed [${res.status}]: ${await res.text()}`);
+    }
+    return { sent, devices: list.length };
   });
