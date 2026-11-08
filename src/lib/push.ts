@@ -43,9 +43,11 @@ export async function refreshPushSilently(): Promise<PushResult | null> {
 }
 
 // Con la pestaña abierta y visible, el navegador no muestra el aviso: lo mostramos nosotros.
+let unsub: (() => void) | null = null;
 export function listenForeground(cb: (title: string, body: string) => void): () => void {
   if (!messagingRef) return () => {};
-  return onMessage(messagingRef, (p) => {
+  unsub?.();
+  unsub = onMessage(messagingRef, (p) => {
     const title = p.notification?.title ?? "Laboratorio de Simulación";
     const body = p.notification?.body ?? "";
     cb(title, body);
@@ -53,4 +55,6 @@ export function listenForeground(cb: (title: string, body: string) => void): () 
       if (Notification.permission === "granted" && document.visibilityState !== "visible") new Notification(title, { body, icon: "/favicon.png" });
     } catch { /* algunos navegadores móviles no permiten new Notification */ }
   });
+  const mine = unsub;
+  return () => { if (unsub === mine) { mine(); unsub = null; } };
 }
