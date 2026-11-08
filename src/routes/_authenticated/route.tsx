@@ -2,7 +2,9 @@ import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } 
 import { useQueryClient } from "@tanstack/react-query";
 import { FilePlus, ListChecks, UserX, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell } from "lucide-react";
 import { toast } from "sonner";
-import { enablePush } from "@/lib/push";
+import { useEffect } from "react";
+import { enablePush, refreshPushSilently, listenForeground } from "@/lib/push";
+import { sendTestPush } from "@/lib/push.functions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu,
@@ -45,12 +47,29 @@ function Shell() {
     await supabase.auth.signOut();
     navigate({ to: "/", replace: true });
   };
+  const guardarToken = async (token: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    if (u.user) await supabase.from("push_tokens").upsert({ user_id: u.user.id, token }, { onConflict: "token" });
+  };
+  useEffect(() => {
+    let off = () => {};
+    let vivo = true;
+    refreshPushSilently().then(async (res) => {
+      if (!vivo || res?.status !== "registered") return;
+      await guardarToken(res.token);
+      off = listenForeground((title, body) => toast(title, { description: body }));
+    });
+    return () => { vivo = false; off(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
   const activarNotificaciones = async () => {
     const res = await enablePush();
     if (res.status === "registered") {
-      const { data: u } = await supabase.auth.getUser();
-      if (u.user) await supabase.from("push_tokens").upsert({ user_id: u.user.id, token: res.token }, { onConflict: "token" });
-      toast.success("Notificaciones activadas en este dispositivo");
+      await guardarToken(res.token);
+      listenForeground((title, body) => toast(title, { description: body }));
+      const r = await sendTestPush().catch(() => ({ sent: 0 }));
+      if (r.sent > 0) toast.success("Notificaciones activadas. Te enviamos un aviso de prueba.");
+      else toast.error("El dispositivo quedó registrado, pero el aviso de prueba no se pudo enviar.");
     } else if (res.status === "open-in-new-tab") {
       toast.info("Abre la aplicación en su propia pestaña (no dentro de la vista previa) para activar las notificaciones.");
     } else if (res.status === "not-configured") {
