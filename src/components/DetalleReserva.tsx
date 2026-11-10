@@ -9,11 +9,20 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { FormatoPreviewModal, NOTA_30 } from "@/components/FormularioReserva";
+import { FormatoSalidaModal } from "@/components/FormatoSalida";
 import { RelojHora } from "@/components/RelojHora";
 import { supabase } from "@/integrations/supabase/client";
-import { fmt, hora, type Row } from "@/lib/app-data";
+import { fmt, hora, useSessionUser, type Row } from "@/lib/app-data";
+import { notifyReservationPush } from "@/lib/push.functions";
 import { toast } from "sonner";
 import { ChatReserva } from "@/components/ChatReserva";
+import { Textarea } from "@/components/ui/textarea";
+
+const ESTADO_SALIDA: Record<string, string> = {
+  PENDIENTE_AUTORIZACION_SALIDA: "Pendiente de autorización",
+  SALIDA_APROBADA: "Salida aprobada",
+  SALIDA_RECHAZADA: "Salida rechazada",
+};
 
 export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void }) {
   const [print, setPrint] = useState(false);
