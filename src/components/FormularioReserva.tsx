@@ -27,7 +27,7 @@ const sel = "border border-input rounded-lg px-2 h-9 bg-background text-foregrou
 const L = ({ t, children }: { t: string; children: React.ReactNode }) => (
   <label className="space-y-1 text-xs font-medium text-muted-foreground block"><span>{t}</span>{children}</label>
 );
-const EXT0 = { destination: "", responsible_name: "", responsible_document: "", responsible_phone: "", transport_vehicle: "", departure_at: "", return_at: "", inventory_detail: "", purpose: "" };
+const EXT0 = { destination: "", responsible_name: "", responsible_document: "", responsible_phone: "", cargo: "", correo_institucional: "", transport_vehicle: "", departure_at: "", return_at: "", inventory_detail: "", purpose: "" };
 
 export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; activities: Row[]; onDone: (msg: string) => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
@@ -211,16 +211,18 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
           </div>
           {salida && (
             <div className="grid gap-3 sm:grid-cols-2">
-              {E("destination", "Lugar de destino")}
-              {E("responsible_name", "Responsable del traslado")}
+              {E("destination", "Lugar de destino (ej. Parque de la Vida)")}
+              {E("responsible_name", "Persona autorizada a sacar el bien")}
               {E("responsible_document", "Documento del responsable")}
-              {E("responsible_phone", "Teléfono del responsable")}
+              {E("cargo", "Cargo")}
+              {E("responsible_phone", "Teléfono")}
+              {E("correo_institucional", "Correo electrónico institucional", "email")}
               {E("transport_vehicle", "Vehículo / transporte")}
-              {E("purpose", "Propósito")}
-              {E("departure_at", "Fecha y hora de salida", "datetime-local")}
-              {E("return_at", "Fecha y hora de retorno", "datetime-local")}
-              <div className="sm:col-span-2"><L t="Inventario detallado que sale"><Textarea value={ext.inventory_detail} onChange={(e) => setExt({ ...ext, inventory_detail: e.target.value })} /></L></div>
-              <p className="sm:col-span-2 text-xs text-muted-foreground">Al enviar, el responsable acepta la custodia de los recursos durante la salida.</p>
+              {E("purpose", "Destino u objeto de la salida (motivo)")}
+              {E("departure_at", "Fecha de autorización (salida)", "datetime-local")}
+              {E("return_at", "Fecha estimada de devolución", "datetime-local")}
+              <div className="sm:col-span-2"><L t="Relación de elementos (cantidad y descripción breve)"><Textarea value={ext.inventory_detail} onChange={(e) => setExt({ ...ext, inventory_detail: e.target.value })} /></L></div>
+              <p className="sm:col-span-2 text-xs text-muted-foreground">La solicitud queda pendiente de autorización por el Laboratorio de Simulación (formato VA-SL-FO-010). Al enviar, el responsable acepta la custodia de los recursos durante la salida.</p>
             </div>
           )}
         </div>

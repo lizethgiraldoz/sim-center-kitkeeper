@@ -38,6 +38,8 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
   const compartidos = mismaFecha ? (occ.data ?? []).filter((x: Row) => horas(x.starts_at) < s1 && horas(x.ends_at) > s0)
     .flatMap((x: Row) => (x.reservation_resources ?? []).filter((y: Row) => recursosR.has(y.resources?.name)).map((y: Row) => `${y.quantity} × ${y.resources?.name}`)) : [];
   const conflicto = space ? cruces(space).length > 0 : false;
+  const espacioSel = spaces.find((s: Row) => s.id === space);
+  const aforoInsuficiente = !!espacioSel && r.participants > espacioSel.capacity;
   const pct = (h: number) => `${((Math.min(Math.max(h, H0), H1) - H0) / (H1 - H0)) * 100}%`;
 
   const confirmar = async () => {
@@ -64,12 +66,21 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
             <label className="text-xs font-medium text-muted-foreground block">Asignar espacio / laboratorio
               <select className="mt-1 border border-input rounded-lg px-2 h-9 bg-background text-foreground text-sm w-full" value={space} onChange={(e) => setSpace(e.target.value)}>
                 <option value="">Seleccione…</option>
-                {spaces.map((s: Row) => (
-                  <option key={s.id} value={s.id} disabled={s.status === "EN_MANTENIMIENTO" || s.status === "FUERA_DE_SERVICIO"}>
-                    {s.name} · cap. {s.capacity}{cruces(s.id).length ? " · OCUPADO" : ""}{s.status !== "DISPONIBLE" && s.status !== "RESERVADO" ? ` · ${s.status}` : ""}
-                  </option>))}
+                {spaces.map((s: Row) => {
+                  const sinAforo = r.participants > s.capacity;
+                  return (
+                    <option key={s.id} value={s.id} disabled={sinAforo || s.status === "EN_MANTENIMIENTO" || s.status === "FUERA_DE_SERVICIO"}>
+                      {s.name} · cap. {s.capacity}{sinAforo ? ` · AFORO INSUFICIENTE (Capacidad: ${s.capacity} | Solicitados: ${r.participants})` : ""}{cruces(s.id).length ? " · OCUPADO" : ""}{s.status !== "DISPONIBLE" && s.status !== "RESERVADO" ? ` · ${s.status}` : ""}
+                    </option>
+                  );
+                })}
               </select>
             </label>
+            {aforoInsuficiente && (
+              <p className="text-sm rounded-lg bg-destructive/10 text-destructive px-3 py-2">
+                Aforo insuficiente (Capacidad: {espacioSel.capacity} | Solicitados: {r.participants}). Seleccione una subdivisión o aula con mayor capacidad.
+              </p>
+            )}
             <p className="text-xs font-semibold">Ocupación del {dia.toLocaleDateString("es-CO", { dateStyle: "full" })} (07:00–19:00)</p>
             <div className="space-y-1.5">
               <div className="relative h-4 ml-28 text-[10px] text-muted-foreground">
@@ -103,7 +114,7 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Cancelar / Volver a revisión</Button>
-          <Button disabled={!space || conflicto || busy} onClick={confirmar}>Confirmar aprobación definitiva</Button>
+          <Button disabled={!space || conflicto || aforoInsuficiente || busy} onClick={confirmar}>Confirmar aprobación definitiva</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
