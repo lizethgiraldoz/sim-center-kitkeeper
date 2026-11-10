@@ -93,7 +93,7 @@ function Page() {
     queryFn: async () => {
       const [sp, rs, disp] = await Promise.all([
         supabase.from("spaces").select("*").order("name"),
-        supabase.from("reservations").select("id, space_id, starts_at, ends_at, status, activities(name)").in("status", ["SOLICITADA", "APROBADA", "EN_CURSO"]).lt("starts_at", hasta).gt("ends_at", desde),
+        supabase.from("reservations").select("id, space_id, starts_at, ends_at, status, programa, docente_responsable_nombre, solicitante_nombre, activities(name)").in("status", ["SOLICITADA", "APROBADA", "EN_CURSO"]).lt("starts_at", hasta).gt("ends_at", desde),
         supabase.rpc("disponibilidad", { _starts_at: new Date(`${dia}T07:00:00-05:00`).toISOString(), _ends_at: new Date(`${dia}T19:00:00-05:00`).toISOString() }),
       ]);
       return { spaces: sp.data ?? [], res: rs.data ?? [], disp: (disp.data ?? []).filter((d: Row) => d.kind !== "ESPACIO") };
@@ -112,6 +112,7 @@ function Page() {
         <Input type="date" className="w-44" value={dia} onChange={(e) => setDia(e.target.value)} />
         <LeyendaColores />
       </div>
+      {q.data && <TableroSalones spaces={q.data.spaces} res={q.data.res.filter((r: Row) => ["APROBADA", "EN_CURSO"].includes(r.status))} />}
       <Card><CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead><tr><th className="sticky left-0 bg-card text-left p-2 border-b min-w-40">Espacio</th>{HORAS.map((h) => <th key={h} className="p-1 border-b font-normal text-muted-foreground">{h}:00</th>)}</tr></thead>
