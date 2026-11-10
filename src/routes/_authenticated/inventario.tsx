@@ -35,7 +35,7 @@ function Page() {
       return { recursos: r.data ?? [], kits: k.data ?? [], reservados };
     },
   });
-  const cambiar = async (id: string, patch: { status?: (typeof ESTADOS)[number]; maintenance_quantity?: number; out_of_service_quantity?: number }) => {
+  const cambiar = async (id: string, patch: { status?: (typeof ESTADOS)[number]; maintenance_quantity?: number; out_of_service_quantity?: number; numero_inventario?: string; descripcion?: string }) => {
     const { error } = await supabase.from("resources").update(patch).eq("id", id);
     if (error) toast.error(error.message); else { toast.success("Estado actualizado"); q.refetch(); }
   };
@@ -47,7 +47,7 @@ function Page() {
         <TabsContent value="recursos">
           <Card><CardContent className="p-0 overflow-x-auto">
             <Table>
-              <TableHeader><TableRow><TableHead>Recurso</TableHead><TableHead>Tipo</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Mantenimiento</TableHead><TableHead>Fuera de servicio</TableHead><TableHead className="text-right">Reservados activos</TableHead><TableHead className="text-right">Disponible</TableHead><TableHead>Estado general</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Recurso</TableHead><TableHead>N° inventario</TableHead><TableHead>Descripción</TableHead><TableHead>Tipo</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Mantenimiento</TableHead><TableHead>Fuera de servicio</TableHead><TableHead className="text-right">Reservados activos</TableHead><TableHead className="text-right">Disponible</TableHead><TableHead>Estado general</TableHead></TableRow></TableHeader>
               <TableBody>
                 {q.data?.recursos.map((r: Row) => {
                   const res = q.data.reservados[r.id] ?? 0;
@@ -60,6 +60,10 @@ function Page() {
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.name}{r.allows_external_exit && <span className="ml-2 text-xs text-muted-foreground">(sale de la Facultad)</span>}</TableCell>
+                      <TableCell><Input defaultValue={r.numero_inventario ?? ""} placeholder="Placa / serial" className="h-8 w-28 text-xs"
+                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (r.numero_inventario ?? "")) cambiar(r.id, { numero_inventario: v }); }} /></TableCell>
+                      <TableCell><Input defaultValue={r.descripcion ?? ""} placeholder="Descripción" className="h-8 w-44 text-xs"
+                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (r.descripcion ?? "")) cambiar(r.id, { descripcion: v }); }} /></TableCell>
                       <TableCell>{KIND[r.resource_categories?.kind] ?? r.resource_categories?.name}</TableCell>
                       <TableCell className="text-right">{r.quantity_total}</TableCell>
                       <TableCell>{num("maintenance_quantity")}</TableCell>
