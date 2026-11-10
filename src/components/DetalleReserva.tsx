@@ -67,13 +67,21 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
             )}
             {r.leaves_faculty && form?.accepts_responsibility && (
               <div className="rounded-xl border p-3 text-xs grid grid-cols-2 gap-1">
-                <p className="col-span-2 font-semibold text-sm">Préstamo y salida externa</p>
+                <p className="col-span-2 font-semibold text-sm flex flex-wrap items-center gap-2">Préstamo y salida externa (VA-SL-FO-010)
+                  <span className={`rounded px-2 py-0.5 ${form.estado === "SALIDA_APROBADA" ? "bg-success/25 text-foreground" : form.estado === "SALIDA_RECHAZADA" ? "bg-destructive/15 text-destructive" : "bg-warning/30 text-foreground"}`}>{ESTADO_SALIDA[form.estado] ?? form.estado}</span>
+                </p>
                 <span className="text-muted-foreground">Destino</span><span>{form.destination}</span>
                 <span className="text-muted-foreground">Responsable</span><span>{form.responsible_name} · {form.responsible_phone}</span>
+                <span className="text-muted-foreground">Cargo / correo</span><span>{form.cargo ?? "—"} · {form.correo_institucional ?? "—"}</span>
                 <span className="text-muted-foreground">Transporte</span><span>{form.transport_vehicle ?? "—"}</span>
                 <span className="text-muted-foreground">Salida / retorno</span><span>{form.departure_at ? fmt(form.departure_at) : "—"} → {form.return_at ? fmt(form.return_at) : "—"}</span>
-                <span className="text-muted-foreground">Inventario</span><span className="whitespace-pre-wrap">{form.inventory_detail ?? "—"}</span>
+                <span className="text-muted-foreground">Elementos</span><span className="whitespace-pre-wrap">{form.inventory_detail ?? "—"}</span>
+                {form.autoriza_nombre && <><span className="text-muted-foreground">Autoriza (Lab. Simulación)</span><span>{form.autoriza_nombre} · {form.autoriza_cargo}</span></>}
+                {form.observaciones && <><span className="text-muted-foreground">Observaciones</span><span className="whitespace-pre-wrap">{form.observaciones}</span></>}
               </div>
+            )}
+            {r.leaves_faculty && form?.accepts_responsibility && form.estado === "PENDIENTE_AUTORIZACION_SALIDA" && (
+              <AutorizacionSalida r={r} form={form} onChanged={onChanged} />
             )}
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <div className="flex flex-wrap gap-2">
