@@ -162,11 +162,22 @@ export type Database = {
       external_borrow_forms: {
         Row: {
           accepts_responsibility: boolean
+          autoriza_cargo: string | null
+          autoriza_correo: string | null
+          autoriza_nombre: string | null
+          autoriza_telefono: string | null
+          cargo: string | null
+          correo_institucional: string | null
           created_at: string
+          decidido_at: string | null
+          decidido_por: string | null
           departure_at: string | null
           destination: string | null
+          estado: string
           id: string
           inventory_detail: string | null
+          items: Json | null
+          observaciones: string | null
           purpose: string | null
           reservation_id: string
           responsible_document: string | null
@@ -177,11 +188,22 @@ export type Database = {
         }
         Insert: {
           accepts_responsibility?: boolean
+          autoriza_cargo?: string | null
+          autoriza_correo?: string | null
+          autoriza_nombre?: string | null
+          autoriza_telefono?: string | null
+          cargo?: string | null
+          correo_institucional?: string | null
           created_at?: string
+          decidido_at?: string | null
+          decidido_por?: string | null
           departure_at?: string | null
           destination?: string | null
+          estado?: string
           id?: string
           inventory_detail?: string | null
+          items?: Json | null
+          observaciones?: string | null
           purpose?: string | null
           reservation_id: string
           responsible_document?: string | null
@@ -192,11 +214,22 @@ export type Database = {
         }
         Update: {
           accepts_responsibility?: boolean
+          autoriza_cargo?: string | null
+          autoriza_correo?: string | null
+          autoriza_nombre?: string | null
+          autoriza_telefono?: string | null
+          cargo?: string | null
+          correo_institucional?: string | null
           created_at?: string
+          decidido_at?: string | null
+          decidido_por?: string | null
           departure_at?: string | null
           destination?: string | null
+          estado?: string
           id?: string
           inventory_detail?: string | null
+          items?: Json | null
+          observaciones?: string | null
           purpose?: string | null
           reservation_id?: string
           responsible_document?: string | null
@@ -526,9 +559,11 @@ export type Database = {
           category_id: string
           code: string | null
           created_at: string
+          descripcion: string | null
           id: string
           maintenance_quantity: number
           name: string
+          numero_inventario: string | null
           out_of_service_quantity: number
           quantity_total: number
           status: Database["public"]["Enums"]["asset_status"]
@@ -538,9 +573,11 @@ export type Database = {
           category_id: string
           code?: string | null
           created_at?: string
+          descripcion?: string | null
           id?: string
           maintenance_quantity?: number
           name: string
+          numero_inventario?: string | null
           out_of_service_quantity?: number
           quantity_total?: number
           status?: Database["public"]["Enums"]["asset_status"]
@@ -550,9 +587,11 @@ export type Database = {
           category_id?: string
           code?: string | null
           created_at?: string
+          descripcion?: string | null
           id?: string
           maintenance_quantity?: number
           name?: string
+          numero_inventario?: string | null
           out_of_service_quantity?: number
           quantity_total?: number
           status?: Database["public"]["Enums"]["asset_status"]
@@ -607,6 +646,7 @@ export type Database = {
           parent_space_id: string | null
           status: Database["public"]["Enums"]["asset_status"]
           type: Database["public"]["Enums"]["space_type"]
+          zona: string
         }
         Insert: {
           capacity: number
@@ -618,6 +658,7 @@ export type Database = {
           parent_space_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           type?: Database["public"]["Enums"]["space_type"]
+          zona?: string
         }
         Update: {
           capacity?: number
@@ -629,6 +670,7 @@ export type Database = {
           parent_space_id?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           type?: Database["public"]["Enums"]["space_type"]
+          zona?: string
         }
         Relationships: [
           {
@@ -760,6 +802,10 @@ export type Database = {
         Args: { _id: string; _space_id: string }
         Returns: undefined
       }
+      autorizar_salida: {
+        Args: { _autoriza: Json; _form_id: string; _items: Json }
+        Returns: undefined
+      }
       cancelar_reserva: { Args: { _id: string }; Returns: undefined }
       cancelar_reserva_justificada: {
         Args: { _id: string; _justificacion: string }
@@ -848,6 +894,10 @@ export type Database = {
       }
       rechazar_reserva: {
         Args: { _id: string; _reason: string }
+        Returns: undefined
+      }
+      rechazar_salida: {
+        Args: { _form_id: string; _motivo: string }
         Returns: undefined
       }
       recurso_disponible: {
