@@ -89,7 +89,10 @@ function Page() {
           <p className="text-sm text-muted-foreground">Actual: {reasig?.spaces?.name}. Los equipos e insumos se mantienen.</p>
           <select className="border rounded-md px-2 h-9 bg-background text-sm w-full" value={espacio} onChange={(e) => setEspacio(e.target.value)}>
             <option value="">Seleccione un espacio…</option>
-            {cat?.spaces.filter((s: Row) => s.id !== reasig?.space_id).map((s: Row) => <option key={s.id} value={s.id}>{s.name} · cap. {s.capacity}</option>)}
+            {cat?.spaces.filter((s: Row) => s.id !== reasig?.space_id).map((s: Row) => {
+              const sinAforo = (reasig?.participants ?? 0) > s.capacity;
+              return <option key={s.id} value={s.id} disabled={sinAforo}>{s.name} · cap. {s.capacity}{sinAforo ? ` · AFORO INSUFICIENTE (Capacidad: ${s.capacity} | Solicitados: ${reasig?.participants})` : ""}</option>;
+            })}
           </select>
           <DialogFooter><Button disabled={!espacio} onClick={async () => { if (await run(supabase.rpc("reasignar_espacio", { _id: reasig.id, _new_space_id: espacio }), "Espacio reasignado")) setReasig(null); }}>Aplicar</Button></DialogFooter>
         </DialogContent>
