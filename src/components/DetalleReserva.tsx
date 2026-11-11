@@ -26,6 +26,7 @@ const ESTADO_SALIDA: Record<string, string> = {
 
 export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void }) {
   const [print, setPrint] = useState(false);
+  const [printSalida, setPrintSalida] = useState(false);
   const [repro, setRepro] = useState(false);
   const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
   const [ext, setExt] = useState({ responsible_name: "", responsible_document: "", responsible_phone: "", destination: "", purpose: "" });
