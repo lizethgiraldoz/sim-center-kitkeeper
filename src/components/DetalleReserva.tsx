@@ -102,6 +102,69 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
   );
 }
 
+type ItemSalida = { cantidad: number; descripcion: string; numero_inventario: string };
+
+function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChanged: () => void }) {
+  const { data: me } = useSessionUser();
+  const [a, setA] = useState({ nombre: "", cargo: "", telefono: "", correo: "", observaciones: "" });
+  const [items, setItems] = useState<ItemSalida[]>(() =>
+    (r.reservation_resources ?? []).map((x: Row) => ({
+      cantidad: x.cantidad_aprobada ?? x.quantity,
+      descripcion: x.resources?.name ?? "",
+      numero_inventario: x.resources?.numero_inventario ?? "",
+    })));
+  const [motivo, setMotivo] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!me?.isAdmin) return null;
+
+  const decidir = async (aprobar: boolean) => {
+    setBusy(true);
+    const { error } = aprobar
+      ? await supabase.rpc("autorizar_salida", { _form_id: form.id, _autoriza: a, _items: items })
+      : await supabase.rpc("rechazar_salida", { _form_id: form.id, _motivo: motivo.trim() });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    void notifyReservationPush({ data: {
+      reservationId: r.id,
+      title: aprobar ? "Salida de bienes aprobada" : "Salida de bienes rechazada",
+      body: aprobar ? `La salida a ${form.destination ?? "destino"} fue autorizada. Ya puedes imprimir el formato VA-SL-FO-010.` : `La salida a ${form.destination ?? "destino"} fue rechazada. ${motivo.trim().slice(0, 80)}`,
+    } }).catch(() => {});
+    toast.success(aprobar ? "Salida autorizada" : "Salida rechazada");
+    onChanged();
+  };
+
+  const inp = "border border-input rounded-lg px-2 h-8 bg-background text-foreground text-xs w-full";
+  return (
+    <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 text-xs">
+      <p className="font-semibold text-sm">Autorización de salida de bienes (etapa 2 · administrador)</p>
+      <p className="text-muted-foreground">Dependencia Autorizada: Facultad de Medicina · Dependencia Responsable: Laboratorio de Simulación</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input className={inp} placeholder="Nombre de quien autoriza (ej. Juan Carlos Caro Gil)" value={a.nombre} onChange={(e) => setA({ ...a, nombre: e.target.value })} />
+        <Input className={inp} placeholder="Cargo (ej. Técnico Laboratorio)" value={a.cargo} onChange={(e) => setA({ ...a, cargo: e.target.value })} />
+        <Input className={inp} placeholder="Teléfono" value={a.telefono} onChange={(e) => setA({ ...a, telefono: e.target.value })} />
+        <Input className={inp} placeholder="Correo institucional" value={a.correo} onChange={(e) => setA({ ...a, correo: e.target.value })} />
+      </div>
+      <p className="font-semibold">Control de inventario: asigna el N° de inventario / serial a cada elemento</p>
+      <div className="space-y-1">
+        {items.map((it, i) => (
+          <div key={i} className="grid grid-cols-[56px_1fr_120px] gap-1 items-center">
+            <Input className={inp} type="number" min={0} value={it.cantidad} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, cantidad: Math.max(0, +e.target.value || 0) } : x))} />
+            <Input className={inp} value={it.descripcion} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, descripcion: e.target.value } : x))} />
+            <Input className={inp} placeholder="N° inventario" value={it.numero_inventario} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, numero_inventario: e.target.value } : x))} />
+          </div>
+        ))}
+        {items.length === 0 && <p className="text-muted-foreground">Sin equipos de la reserva; se usará la relación de elementos del docente.</p>}
+      </div>
+      <Textarea placeholder="Observaciones (opcional)" value={a.observaciones} onChange={(e) => setA({ ...a, observaciones: e.target.value })} />
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <Button size="sm" disabled={busy || !a.nombre.trim()} onClick={() => decidir(true)}>Aprobar Salida</Button>
+        <Input className={`${inp} flex-1 min-w-40`} placeholder="Motivo del rechazo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+        <Button size="sm" variant="destructive" disabled={busy || !motivo.trim()} onClick={() => decidir(false)}>Rechazar Salida</Button>
+      </div>
+    </div>
+  );
+}
+
 function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void; onDone: () => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const [dia, setDia] = useState<Date>(new Date(r.starts_at));
