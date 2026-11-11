@@ -87,9 +87,13 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
+              {r.leaves_faculty && form?.estado === "SALIDA_APROBADA" && (
+                <Button variant="outline" size="sm" onClick={() => setPrintSalida(true)}>Imprimir Formato VA-SL-FO-010</Button>
+              )}
               {["SOLICITADA", "APROBADA"].includes(r.status) && <Button variant="outline" size="sm" onClick={() => setRepro(true)}>Reprogramar</Button>}
             </div>
             {print && <FormatoPreviewModal r={r} onClose={() => setPrint(false)} />}
+            {printSalida && <FormatoSalidaModal r={r} onClose={() => setPrintSalida(false)} />}
           </div>
         </DialogContent>
       </Dialog>
