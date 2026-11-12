@@ -33,9 +33,12 @@ const KIND: Record<string, string> = {
   INSUMO: "Insumo",
   PAQUETE_QUIRURGICO: "Paquete quirúrgico",
 };
-const sel = "border border-input rounded-lg px-2 h-9 bg-background text-foreground text-sm w-full shadow-sm";
-const L = ({ t, children }: { t: string; children: React.ReactNode }) => (
-  <label className="space-y-1 text-xs font-medium text-muted-foreground block"><span>{t}</span>{children}</label>
+const sel = "border border-input rounded-lg px-2.5 h-9 bg-background text-foreground text-sm w-full min-w-0 truncate shadow-sm";
+const L = ({ t, children, className = "" }: { t: string; children: React.ReactNode; className?: string }) => (
+  <label className={`space-y-1 text-xs font-medium text-muted-foreground block min-w-0 ${className}`}>
+    <span className="block truncate" title={t}>{t}</span>
+    {children}
+  </label>
 );
 const EXT0 = {
   destination: "",
@@ -241,8 +244,10 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
     if (error) { setErr(error.message); return; }
     onDone("Solicitud enviada. El administrador asignará el espacio al revisarla.");
   };
-  const E = (k: keyof typeof EXT0, t: string, type = "text", placeholder = "") => (
-    <L t={t}><Input type={type} placeholder={placeholder} value={ext[k]} onChange={(e) => setExt({ ...ext, [k]: e.target.value })} /></L>
+  const E = (k: keyof typeof EXT0, t: string, type = "text", placeholder = "", className = "") => (
+    <L t={t} className={className}>
+      <Input type={type} className="w-full min-w-0 truncate" placeholder={placeholder} value={ext[k]} onChange={(e) => setExt({ ...ext, [k]: e.target.value })} />
+    </L>
   );
   return (
     <Card className="rounded-xl shadow-md">
@@ -295,24 +300,25 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                   {(FACULTADES[h.facultad_entidad] ?? []).map((p) => <option key={p}>{p}</option>)}
                 </select>
               </L>
-              {E("responsible_name", "Persona autorizada a sacar el bien *", "text", "Nombre completo del docente o responsable")}
-              {E("responsible_document", "Documento del responsable", "text", "Cédula")}
+              {E("responsible_name", "Persona autorizada a sacar el bien *", "text", "Nombre del responsable")}
+              {E("responsible_document", "Documento del responsable", "text", "N° de documento")}
               {E("cargo", "Cargo", "text", "Ej. Docente / Coordinador")}
               {E("responsible_phone", "Teléfono de contacto", "text", "Celular o extensión")}
               {E("correo_institucional", "Correo electrónico institucional", "email", "usuario@udea.edu.co")}
-              {E("destination", "Lugar de destino *", "text", "Ej. Parque de la Vida, Hospital, Brigada")}
-              {E("transport_vehicle", "Vehículo / transporte *", "text", "Ej. Vehículo institucional / particular")}
+              {E("destination", "Lugar de destino *", "text", "Ej. Parque de la Vida")}
+              {E("transport_vehicle", "Vehículo / transporte *", "text", "Ej. Vehículo institucional")}
               <div className="sm:col-span-2 md:col-span-3">
-                {E("purpose", "Destino u objeto de la salida (motivo)", "text", "Ej. Taller extramural de reanimación básica")}
+                {E("purpose", "Destino u objeto de la salida (motivo)", "text", "Ej. Taller extramural de reanimación")}
               </div>
             </div>
             <h3 className="text-sm font-semibold border-b pb-1 text-primary">Fechas y horarios de salida y devolución</h3>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <L t="Fecha de salida *">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <L t="Fecha de salida *" className="sm:col-span-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal">
-                      <CalendarIcon className="h-4 w-4" />{format(salidaDate, "PPP", { locale: es })}
+                    <Button variant="outline" className="w-full min-w-0 justify-start font-normal px-3 overflow-hidden">
+                      <CalendarIcon className="h-4 w-4 shrink-0 mr-2" />
+                      <span className="truncate">{format(salidaDate, "PPP", { locale: es })}</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -331,14 +337,15 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                   </PopoverContent>
                 </Popover>
               </L>
-              <L t="Hora de salida *">
+              <L t="Hora de salida *" className="sm:col-span-2">
                 <RelojHora value={salidaTime} onChange={setSalidaTime} />
               </L>
-              <L t="Fecha estimada de devolución *">
+              <L t="Fecha estimada de devolución *" className="sm:col-span-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal">
-                      <CalendarIcon className="h-4 w-4" />{format(retornoDate, "PPP", { locale: es })}
+                    <Button variant="outline" className="w-full min-w-0 justify-start font-normal px-3 overflow-hidden">
+                      <CalendarIcon className="h-4 w-4 shrink-0 mr-2" />
+                      <span className="truncate">{format(retornoDate, "PPP", { locale: es })}</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -353,7 +360,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                   </PopoverContent>
                 </Popover>
               </L>
-              <L t="Hora estimada de devolución *">
+              <L t="Hora estimada de devolución *" className="sm:col-span-2">
                 <RelojHora value={retornoTime} onChange={setRetornoTime} />
               </L>
             </div>
@@ -388,7 +395,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                   </select>
                 </L>
                 <L t="Cantidad">
-                  <Input type="number" min={1} value={selCant} onChange={(e) => setSelCant(Math.max(1, +e.target.value || 1))} />
+                  <Input type="number" min={1} className="w-full min-w-0" value={selCant} onChange={(e) => setSelCant(Math.max(1, +e.target.value || 1))} />
                 </L>
                 <Button type="button" onClick={agregarItemPrestamo}>
                   <Plus className="h-4 w-4 mr-1" />Agregar
@@ -397,7 +404,8 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               {selInv === "__OTRO__" && (
                 <L t="Especifica el insumo o equipo que deseas prestar o trasladar">
                   <Input
-                    placeholder="Ej. 2 cajas de guantes estériles talla M, gasas, material fungible…"
+                    className="w-full min-w-0 truncate"
+                    placeholder="Ej. Guantes estériles talla M, gasas..."
                     value={otroTexto}
                     onChange={(e) => setOtroTexto(e.target.value)}
                   />
@@ -414,7 +422,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                   {prestamoItems.map((it, idx) => (
                     <div key={idx} className="grid grid-cols-[64px_1fr_110px_40px] gap-2 px-3 py-1.5 items-center text-xs">
                       <span className="font-semibold">{it.cantidad}</span>
-                      <span>
+                      <span className="min-w-0 break-words">
                         {it.descripcion}
                         {it.esOtro && (
                           <span className="ml-1.5 rounded bg-warning/30 px-1.5 py-0.5 text-[10px] font-medium">
@@ -422,7 +430,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                           </span>
                         )}
                       </span>
-                      <span className="text-muted-foreground">{it.numero_inventario || "—"}</span>
+                      <span className="text-muted-foreground truncate">{it.numero_inventario || "—"}</span>
                       <Button
                         type="button"
                         size="icon"
@@ -439,7 +447,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               )}
             </div>
             <L t="Observaciones adicionales (opcional)">
-              <Textarea value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} />
+              <Textarea className="w-full min-w-0" placeholder="Notas adicionales sobre la salida..." value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} />
             </L>
             <p className="text-xs text-muted-foreground">
               La solicitud queda pendiente de autorización por el Laboratorio de Simulación (formato <strong>VA-SL-FO-010</strong>). Al enviar, el responsable acepta la custodia y devolución oportuna de los bienes.
@@ -453,22 +461,35 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                 {Object.keys(FACULTADES).map((f) => <option key={f}>{f}</option>)}</select></L>
               <L t="Programa"><select className={sel} value={h.programa} onChange={(e) => setH({ ...h, programa: e.target.value })}>
                 {(FACULTADES[h.facultad_entidad] ?? []).map((p) => <option key={p}>{p}</option>)}</select></L>
-              <L t="Semestre"><Input type="number" value={h.semestre} onChange={(e) => setH({ ...h, semestre: e.target.value })} /></L>
-              <L t="No. de participantes"><Input type="number" value={h.participants} onChange={(e) => setH({ ...h, participants: +e.target.value })} /></L>
-              <L t="Persona que hace la reserva"><Input value={h.solicitante_nombre} onChange={(e) => setH({ ...h, solicitante_nombre: e.target.value })} /></L>
-              <L t="Doc. #"><Input value={h.solicitante_documento} onChange={(e) => setH({ ...h, solicitante_documento: e.target.value })} /></L>
-              <L t="Docente responsable"><Input value={h.docente_responsable_nombre} onChange={(e) => setH({ ...h, docente_responsable_nombre: e.target.value })} /></L>
-              <L t="Doc. #"><Input value={h.docente_responsable_documento} onChange={(e) => setH({ ...h, docente_responsable_documento: e.target.value })} /></L>
-              <L t="Teléfono"><Input value={h.telefono_contacto} onChange={(e) => setH({ ...h, telefono_contacto: e.target.value })} /></L>
+              <L t="Semestre"><Input type="number" className="w-full min-w-0" value={h.semestre} onChange={(e) => setH({ ...h, semestre: e.target.value })} /></L>
+              <L t="No. de participantes"><Input type="number" className="w-full min-w-0" value={h.participants} onChange={(e) => setH({ ...h, participants: +e.target.value })} /></L>
+              <L t="Persona que hace la reserva"><Input className="w-full min-w-0 truncate" placeholder="Nombre completo" value={h.solicitante_nombre} onChange={(e) => setH({ ...h, solicitante_nombre: e.target.value })} /></L>
+              <L t="Doc. #"><Input className="w-full min-w-0 truncate" placeholder="N° documento" value={h.solicitante_documento} onChange={(e) => setH({ ...h, solicitante_documento: e.target.value })} /></L>
+              <L t="Docente responsable"><Input className="w-full min-w-0 truncate" placeholder="Nombre del docente" value={h.docente_responsable_nombre} onChange={(e) => setH({ ...h, docente_responsable_nombre: e.target.value })} /></L>
+              <L t="Doc. #"><Input className="w-full min-w-0 truncate" placeholder="N° documento" value={h.docente_responsable_documento} onChange={(e) => setH({ ...h, docente_responsable_documento: e.target.value })} /></L>
+              <L t="Teléfono"><Input className="w-full min-w-0 truncate" placeholder="Celular o ext." value={h.telefono_contacto} onChange={(e) => setH({ ...h, telefono_contacto: e.target.value })} /></L>
             </div>
             <h3 className="text-sm font-semibold border-b pb-1 text-primary">Descripción</h3>
-            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <L t="Módulo académico"><select className={sel} value={d.activity} onChange={(e) => setD({ ...d, activity: e.target.value })}>
-                {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></L>
-              <L t="Fecha de la actividad">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <L t="Módulo académico" className="sm:col-span-2">
+                <select className={sel} value={d.activity} onChange={(e) => setD({ ...d, activity: e.target.value })}>
+                  {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </L>
+              <L t="Repetir (reserva recurrente)" className="sm:col-span-2">
+                <select className={sel} value={modo} onChange={(e) => { const m = e.target.value as typeof modo; setModo(m); if (m === "MISMO" && semanas < 2) setSemanas(4); }}>
+                  <option value="NO">No repetir</option>
+                  <option value="MISMO">Mismo horario cada semana</option>
+                  <option value="DISTINTO">Otras fechas u horarios</option>
+                </select>
+              </L>
+              <L t="Fecha de la actividad" className="sm:col-span-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal"><CalendarIcon className="h-4 w-4" />{format(d.date, "PPP", { locale: es })}</Button>
+                    <Button variant="outline" className="w-full min-w-0 justify-start font-normal px-3 overflow-hidden">
+                      <CalendarIcon className="h-4 w-4 shrink-0 mr-2" />
+                      <span className="truncate">{format(d.date, "PPP", { locale: es })}</span>
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar mode="single" locale={es} selected={d.date} onSelect={(x) => x && setD({ ...d, date: x })}
@@ -478,11 +499,6 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               </L>
               <L t="Hora inicio"><RelojHora value={d.start} onChange={(v) => setD({ ...d, start: v })} /></L>
               <L t="Hora fin (máx. 19:00)"><RelojHora value={d.end} onChange={(v) => setD({ ...d, end: v })} /></L>
-              <L t="Repetir (reserva recurrente)"><select className={sel} value={modo} onChange={(e) => { const m = e.target.value as typeof modo; setModo(m); if (m === "MISMO" && semanas < 2) setSemanas(4); }}>
-                <option value="NO">No repetir</option>
-                <option value="MISMO">Mismo horario cada semana</option>
-                <option value="DISTINTO">Otras fechas u horarios</option>
-              </select></L>
             </div>
             {modo === "MISMO" && <div className="flex flex-wrap items-center gap-2 text-sm rounded-lg bg-accent text-accent-foreground px-3 py-2">
               Repetir el mismo día y hora durante
@@ -523,7 +539,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                 ))}
               </div>
             </div>
-            <L t="Observaciones"><Textarea value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} /></L>
+            <L t="Observaciones"><Textarea className="w-full min-w-0" placeholder="Notas adicionales..." value={d.notes} onChange={(e) => setD({ ...d, notes: e.target.value })} /></L>
             {items.length > 0 && <p className="text-sm rounded-lg bg-accent text-accent-foreground px-3 py-2">{NOTA_30}</p>}
             {d.end > "19:00" && <p className="text-sm rounded-lg bg-destructive/10 text-destructive px-3 py-2">La hora de fin supera las 19:00 hrs: requiere autorización especial.</p>}
           </>
