@@ -17,6 +17,7 @@ import { Route as AuthenticatedDocentesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedMisSolicitudesRouteImport } from './routes/_authenticated/mis-solicitudes'
 import { Route as AuthenticatedNuevaReservaRouteImport } from './routes/_authenticated/nueva-reserva'
+import { Route as AuthenticatedPrestamosExternosRouteImport } from './routes/_authenticated/prestamos-externos'
 import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticated/reportes'
 import { Route as AuthenticatedSolicitudesRouteImport } from './routes/_authenticated/solicitudes'
 import { Route as ApiPublicRecordatorioMontajeRouteImport } from './routes/api/public/recordatorio-montaje'
@@ -63,6 +64,12 @@ const AuthenticatedNuevaReservaRoute =
     path: '/nueva-reserva',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPrestamosExternosRoute =
+  AuthenticatedPrestamosExternosRouteImport.update({
+    id: '/prestamos-externos',
+    path: '/prestamos-externos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportesRoute = AuthenticatedReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
@@ -89,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/inventario': typeof AuthenticatedInventarioRoute
   '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/prestamos-externos': typeof AuthenticatedPrestamosExternosRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/solicitudes': typeof AuthenticatedSolicitudesRoute
   '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
@@ -101,6 +109,7 @@ export interface FileRoutesByTo {
   '/inventario': typeof AuthenticatedInventarioRoute
   '/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/prestamos-externos': typeof AuthenticatedPrestamosExternosRoute
   '/reportes': typeof AuthenticatedReportesRoute
   '/solicitudes': typeof AuthenticatedSolicitudesRoute
   '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
@@ -115,6 +124,7 @@ export interface FileRoutesById {
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/mis-solicitudes': typeof AuthenticatedMisSolicitudesRoute
   '/_authenticated/nueva-reserva': typeof AuthenticatedNuevaReservaRoute
+  '/_authenticated/prestamos-externos': typeof AuthenticatedPrestamosExternosRoute
   '/_authenticated/reportes': typeof AuthenticatedReportesRoute
   '/_authenticated/solicitudes': typeof AuthenticatedSolicitudesRoute
   '/api/public/recordatorio-montaje': typeof ApiPublicRecordatorioMontajeRoute
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/mis-solicitudes'
     | '/nueva-reserva'
+    | '/prestamos-externos'
     | '/reportes'
     | '/solicitudes'
     | '/api/public/recordatorio-montaje'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/mis-solicitudes'
     | '/nueva-reserva'
+    | '/prestamos-externos'
     | '/reportes'
     | '/solicitudes'
     | '/api/public/recordatorio-montaje'
@@ -154,6 +166,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventario'
     | '/_authenticated/mis-solicitudes'
     | '/_authenticated/nueva-reserva'
+    | '/_authenticated/prestamos-externos'
     | '/_authenticated/reportes'
     | '/_authenticated/solicitudes'
     | '/api/public/recordatorio-montaje'
@@ -223,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNuevaReservaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/prestamos-externos': {
+      id: '/_authenticated/prestamos-externos'
+      path: '/prestamos-externos'
+      fullPath: '/prestamos-externos'
+      preLoaderRoute: typeof AuthenticatedPrestamosExternosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reportes': {
       id: '/_authenticated/reportes'
       path: '/reportes'
@@ -254,6 +274,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedMisSolicitudesRoute: typeof AuthenticatedMisSolicitudesRoute
   AuthenticatedNuevaReservaRoute: typeof AuthenticatedNuevaReservaRoute
+  AuthenticatedPrestamosExternosRoute: typeof AuthenticatedPrestamosExternosRoute
   AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
   AuthenticatedSolicitudesRoute: typeof AuthenticatedSolicitudesRoute
 }
@@ -265,6 +286,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedMisSolicitudesRoute: AuthenticatedMisSolicitudesRoute,
   AuthenticatedNuevaReservaRoute: AuthenticatedNuevaReservaRoute,
+  AuthenticatedPrestamosExternosRoute: AuthenticatedPrestamosExternosRoute,
   AuthenticatedReportesRoute: AuthenticatedReportesRoute,
   AuthenticatedSolicitudesRoute: AuthenticatedSolicitudesRoute,
 }

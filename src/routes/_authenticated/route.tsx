@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { FilePlus, ListChecks, UserX, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell } from "lucide-react";
+import { FilePlus, ListChecks, UserX, UserCheck, CalendarRange, ClipboardCheck, Boxes, BarChart3, LogOut, Bell, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { enablePush, refreshPushSilently, listenForeground } from "@/lib/push";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSessionUser } from "@/lib/app-data";
 import logo from "@/assets/logo-udea.png.asset.json";
-
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
@@ -23,7 +22,6 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: Shell,
 });
-
 const DOCENTE = [
   { title: "Nueva reserva", url: "/nueva-reserva", icon: FilePlus },
   { title: "Mis solicitudes", url: "/mis-solicitudes", icon: ListChecks },
@@ -31,12 +29,12 @@ const DOCENTE = [
 const ADMIN = [
   { title: "Disponibilidad y bloqueos", url: "/disponibilidad", icon: CalendarRange },
   { title: "Gestión de solicitudes", url: "/solicitudes", icon: ClipboardCheck },
+  { title: "Préstamos y salidas externas", url: "/prestamos-externos", icon: Truck },
   { title: "Asistencia y montaje", url: "/asistencia", icon: UserX },
   { title: "Verificación de docentes", url: "/docentes", icon: UserCheck },
   { title: "Inventario y quirófano", url: "/inventario", icon: Boxes },
   { title: "Estadísticas", url: "/reportes", icon: BarChart3 },
 ] as const;
-
 function Shell() {
   const { data: me } = useSessionUser();
   const path = useRouterState({ select: (r) => r.location.pathname });
@@ -81,7 +79,6 @@ function Shell() {
     }
   };
   const groups = [{ label: "Docente", items: DOCENTE }, ...(me?.isAdmin ? [{ label: "Administración", items: ADMIN }] : [])];
-
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">

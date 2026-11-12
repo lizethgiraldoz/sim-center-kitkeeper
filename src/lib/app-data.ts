@@ -1,15 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Row = any;
-
 export const fmt = (d: string) => new Date(d).toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" });
 export const hora = (d: string) => new Date(d).toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" });
-
 export const RESERVA_SELECT =
-  "*, spaces(name, type), activities(name), reservation_resources(quantity, cantidad_aprobada, resources(name)), external_borrow_forms(*)";
-
+  "*, spaces(name, type), activities(name), reservation_resources(resource_id, quantity, cantidad_aprobada, resources(id, name, numero_inventario, allows_external_exit)), external_borrow_forms(*)";
 export function useSessionUser() {
   return useQuery({
     queryKey: ["session-user"],
@@ -22,7 +18,6 @@ export function useSessionUser() {
     },
   });
 }
-
 export function useCatalogos() {
   return useQuery({
     queryKey: ["catalogos"],
