@@ -45,23 +45,26 @@ const EXT0 = {
   cargo: "",
   correo_institucional: "",
   transport_vehicle: "",
-  departure_at: "",
-  return_at: "",
   inventory_detail: "",
   purpose: "",
 };
 export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; activities: Row[]; onDone: (msg: string) => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const manana = new Date(Date.now() + 86400000);
   const [h, setH] = useState({
     facultad_entidad: "Facultad de Medicina", programa: "Medicina", semestre: "13", participants: 20, telefono_contacto: "",
     solicitante_nombre: "", solicitante_documento: "", docente_responsable_nombre: "", docente_responsable_documento: "",
   });
-  const [d, setD] = useState({ activity: "", date: new Date(Date.now() + 86400000), start: "08:00", end: "12:00", notes: "" });
+  const [d, setD] = useState({ activity: "", date: manana, start: "08:00", end: "12:00", notes: "" });
   const [salida, setSalida] = useState(false);
   const [modo, setModo] = useState<"NO" | "MISMO" | "DISTINTO">("NO");
   const [semanas, setSemanas] = useState(4);
   const [extras, setExtras] = useState<{ fecha: string; inicio: string; fin: string }[]>([]);
   const [ext, setExt] = useState(EXT0);
+  const [salidaDate, setSalidaDate] = useState<Date>(manana);
+  const [salidaTime, setSalidaTime] = useState("08:00");
+  const [retornoDate, setRetornoDate] = useState<Date>(manana);
+  const [retornoTime, setRetornoTime] = useState("12:00");
   const [items, setItems] = useState<Item[]>([]);
   const [err, setErr] = useState("");
   // Inventario completo para préstamos externos + opción "Otro"
@@ -97,7 +100,6 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
   const sinStock = !salida
     ? items.filter((i) => i.cantidad > 0 && disp[i.resource_id] !== undefined && i.cantidad > (disp[i.resource_id] ?? 0))
     : [];
-  const isoLocal = (v: string) => (v ? new Date(`${v}:00-05:00`).toISOString() : "");
   const agregarItemPrestamo = () => {
     setErr("");
     const cant = Math.max(1, Math.floor(Number(selCant) || 1));
@@ -151,15 +153,17 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
   const submit = async () => {
     setErr("");
     if (salida) {
-      if (!ext.destination.trim() || !ext.responsible_name.trim() || !ext.transport_vehicle.trim() || !ext.departure_at || !ext.return_at) {
-        setErr("Completa destino, responsable que retira, transporte, fecha/hora de salida y fecha/hora de devolución.");
+      if (!ext.destination.trim() || !ext.responsible_name.trim() || !ext.transport_vehicle.trim()) {
+        setErr("Completa destino, persona autorizada a sacar el bien y vehículo / transporte.");
         return;
       }
-      if (new Date(ext.departure_at) < hoy) {
+      if (salidaDate < hoy) {
         setErr("La fecha de salida no puede estar en el pasado.");
         return;
       }
-      if (new Date(ext.return_at) <= new Date(ext.departure_at)) {
+      const depIso = new Date(`${format(salidaDate, "yyyy-MM-dd")}T${salidaTime}:00-05:00`).toISOString();
+      const retIso = new Date(`${format(retornoDate, "yyyy-MM-dd")}T${retornoTime}:00-05:00`).toISOString();
+      if (new Date(retIso) <= new Date(depIso)) {
         setErr("La fecha y hora de devolución debe ser posterior a la de salida.");
         return;
       }
@@ -181,15 +185,15 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
         docente_responsable_nombre: ext.responsible_name,
         docente_responsable_documento: ext.responsible_document,
         activity_id: d.activity,
-        starts_at: isoLocal(ext.departure_at),
-        ends_at: isoLocal(ext.return_at),
+        starts_at: depIso,
+        ends_at: retIso,
         notes: d.notes,
         items: itemsCatalogo,
         salida: {
           ...ext,
           inventory_detail: inventarioDetalleTexto,
-          departure_at: isoLocal(ext.departure_at),
-          return_at: isoLocal(ext.return_at),
+          departure_at: depIso,
+          return_at: retIso,
           accepts_responsibility: true,
         },
       };
@@ -301,8 +305,57 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               <div className="sm:col-span-2 md:col-span-3">
                 {E("purpose", "Destino u objeto de la salida (motivo)", "text", "Ej. Taller extramural de reanimación básica")}
               </div>
-              {E("departure_at", "Fecha y hora de salida *", "datetime-local")}
-              {E("return_at", "Fecha y hora estimada de devolución *", "datetime-local")}
+            </div>
+            <h3 className="text-sm font-semibold border-b pb-1 text-primary">Fechas y horarios de salida y devolución</h3>
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <L t="Fecha de salida *">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal">
+                      <CalendarIcon className="h-4 w-4" />{format(salidaDate, "PPP", { locale: es })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={es}
+                      selected={salidaDate}
+                      onSelect={(x) => {
+                        if (!x) return;
+                        setSalidaDate(x);
+                        if (x > retornoDate) setRetornoDate(x);
+                      }}
+                      disabled={(x) => x < hoy}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </L>
+              <L t="Hora de salida *">
+                <RelojHora value={salidaTime} onChange={setSalidaTime} />
+              </L>
+              <L t="Fecha estimada de devolución *">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start font-normal">
+                      <CalendarIcon className="h-4 w-4" />{format(retornoDate, "PPP", { locale: es })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={es}
+                      selected={retornoDate}
+                      onSelect={(x) => x && setRetornoDate(x)}
+                      disabled={(x) => x < salidaDate}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </L>
+              <L t="Hora estimada de devolución *">
+                <RelojHora value={retornoTime} onChange={setRetornoTime} />
+              </L>
             </div>
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
               <div>

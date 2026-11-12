@@ -58,10 +58,14 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
           <div className="space-y-3 text-sm">
             <div className="flex flex-wrap gap-2 items-center">
               <EstadoBadge status={r.status} />
-              {esExterna && (
-                <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {esExterna && form && (
+                <button
+                  type="button"
+                  onClick={() => setPrintSalida(true)}
+                  className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                >
                   Formato VA-SL-FO-010
-                </span>
+                </button>
               )}
             </div>
             {!esExterna && (
@@ -124,8 +128,8 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <div className="flex flex-wrap gap-2">
               {!esExterna && <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>}
-              {esExterna && form?.estado === "SALIDA_APROBADA" && (
-                <Button size="sm" onClick={() => setPrintSalida(true)}>Imprimir Formato VA-SL-FO-010</Button>
+              {esExterna && form && (
+                <Button variant="outline" size="sm" onClick={() => setPrintSalida(true)}>Ver formato VA-SL-FO-010</Button>
               )}
               {!esExterna && ["SOLICITADA", "APROBADA"].includes(r.status) && <Button variant="outline" size="sm" onClick={() => setRepro(true)}>Reprogramar</Button>}
             </div>
