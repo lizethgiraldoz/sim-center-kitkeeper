@@ -2,23 +2,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo-udea.png.asset.json";
 import type { Row } from "@/lib/app-data";
-
 const cell = "border border-foreground/40 px-2 py-1 align-top";
-
 function dma(x?: string) {
   if (!x) return { d: "", m: "", a: "" };
   const p = new Date(x).toLocaleDateString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "2-digit", year: "numeric" }).split("/");
   return { d: p[0] ?? "", m: p[1] ?? "", a: p[2] ?? "" };
 }
-
 export function FormatoSalidaModal({ r, onClose }: { r: Row; onClose: () => void }) {
   const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
   if (!form) return null;
   const fa = dma(form.departure_at ?? r.starts_at);
   const fd = dma(form.return_at ?? r.ends_at);
+  const deReserva: Row[] = (r.reservation_resources ?? []).map((x: Row) => ({
+    cantidad: x.cantidad_aprobada ?? x.quantity ?? "",
+    descripcion: x.resources?.name ?? "",
+    numero_inventario: x.resources?.numero_inventario ?? "",
+  }));
   const items: Row[] = Array.isArray(form.items) && form.items.length
     ? form.items
-    : (form.inventory_detail ?? "").split("\n").filter((l: string) => l.trim()).map((l: string) => ({ cantidad: "", descripcion: l.trim(), numero_inventario: "" }));
+    : (form.inventory_detail ?? "").trim()
+      ? (form.inventory_detail ?? "").split("\n").filter((l: string) => l.trim()).map((l: string) => ({ cantidad: "", descripcion: l.trim(), numero_inventario: "" }))
+      : deReserva;
   const filas = items.length ? items : [{ cantidad: "", descripcion: "", numero_inventario: "" }];
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>

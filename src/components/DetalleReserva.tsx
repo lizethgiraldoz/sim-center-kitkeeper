@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,17 +17,16 @@ import { notifyReservationPush } from "@/lib/push.functions";
 import { toast } from "sonner";
 import { ChatReserva } from "@/components/ChatReserva";
 import { Textarea } from "@/components/ui/textarea";
-
 const ESTADO_SALIDA: Record<string, string> = {
   PENDIENTE_AUTORIZACION_SALIDA: "Pendiente de autorización",
   SALIDA_APROBADA: "Salida aprobada",
   SALIDA_RECHAZADA: "Salida rechazada",
 };
-
 export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; open: boolean; onOpenChange: (o: boolean) => void; onChanged: () => void }) {
   const [print, setPrint] = useState(false);
   const [printSalida, setPrintSalida] = useState(false);
   const [repro, setRepro] = useState(false);
+  const esExterna = !!r.leaves_faculty;
   const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
   const [ext, setExt] = useState({ responsible_name: "", responsible_document: "", responsible_phone: "", destination: "", purpose: "" });
   const labels: Record<string, string> = { responsible_name: "Responsable", responsible_document: "Documento", responsible_phone: "Teléfono", destination: "Destino", purpose: "Propósito" };
@@ -35,29 +34,53 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
     const { error } = await supabase.from("external_borrow_forms").update({ ...ext, departure_at: r.starts_at, return_at: r.ends_at, accepts_responsibility: true }).eq("id", form.id);
     if (error) toast.error(error.message); else { toast.success("Formato de salida guardado"); onChanged(); }
   };
+  const elementosTexto = form?.inventory_detail?.trim()
+    ? form.inventory_detail
+    : (r.reservation_resources ?? []).length > 0
+      ? (r.reservation_resources ?? []).map((x: Row) => `${x.cantidad_aprobada ?? x.quantity} × ${x.resources?.name}`).join("\n")
+      : "—";
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
-          <DialogHeader><DialogTitle>{r.activities?.name}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              {esExterna ? (
+                <>
+                  <Truck className="h-5 w-5 text-primary" />
+                  <span>Préstamo y salida externa{form?.destination ? ` · ${form.destination}` : ""}</span>
+                </>
+              ) : (
+                r.activities?.name
+              )}
+            </DialogTitle>
+          </DialogHeader>
           <div className="space-y-3 text-sm">
-            <div className="flex flex-wrap gap-2 items-center"><EstadoBadge status={r.status} />{r.leaves_faculty && <span className="text-xs border rounded px-2">Salida externa</span>}</div>
-            <dl className="grid grid-cols-2 gap-2">
-              <dt className="text-muted-foreground">Espacio</dt><dd>{r.spaces?.name ?? <span className="italic text-muted-foreground">Por asignar (administrador)</span>}</dd>
-              <dt className="text-muted-foreground">Horario</dt><dd>{fmt(r.starts_at)} – {hora(r.ends_at)}</dd>
-              <dt className="text-muted-foreground">Programa / semestre</dt><dd>{r.programa} · {r.semestre ?? "—"}</dd>
-              <dt className="text-muted-foreground">Participantes</dt><dd>{r.participants}</dd>
-              <dt className="text-muted-foreground">Docente responsable</dt><dd>{r.docente_responsable_nombre ?? "—"}</dd>
-            </dl>
-            <div className="rounded-md border bg-accent/40 px-3 py-2"><p className="font-semibold mb-0.5">Observaciones del docente</p><p className="whitespace-pre-wrap text-foreground">{r.notes?.trim() ? r.notes : <span className="italic text-muted-foreground">Sin observaciones</span>}</p></div>
-            {r.rejection_reason && <p className="rounded-md bg-destructive/10 text-destructive px-3 py-2"><strong>Motivo del rechazo:</strong> {r.rejection_reason}</p>}
-            {r.justificacion_cancelacion && <p className="rounded-md bg-muted px-3 py-2"><strong>Justificación de la cancelación:</strong> {r.justificacion_cancelacion}</p>}
-            {r.requiere_ingreso_30min_antes && <p className="rounded-md bg-accent px-3 py-2">{NOTA_30}</p>}
-            <div>
-              <p className="font-semibold mb-1">Equipos e insumos</p>
-              <ul className="text-xs space-y-0.5">{r.reservation_resources?.map((x: Row, i: number) => <li key={i}>{x.quantity} × {x.resources?.name}</li>)}</ul>
+            <div className="flex flex-wrap gap-2 items-center">
+              <EstadoBadge status={r.status} />
+              {esExterna && (
+                <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  Formato VA-SL-FO-010
+                </span>
+              )}
             </div>
-            {r.leaves_faculty && form && r.status === "SOLICITADA" && !form.accepts_responsibility && (
+            {!esExterna && (
+              <>
+                <dl className="grid grid-cols-2 gap-2">
+                  <dt className="text-muted-foreground">Espacio</dt><dd>{r.spaces?.name ?? <span className="italic text-muted-foreground">Por asignar (administrador)</span>}</dd>
+                  <dt className="text-muted-foreground">Horario</dt><dd>{fmt(r.starts_at)} – {hora(r.ends_at)}</dd>
+                  <dt className="text-muted-foreground">Programa / semestre</dt><dd>{r.programa} · {r.semestre ?? "—"}</dd>
+                  <dt className="text-muted-foreground">Participantes</dt><dd>{r.participants}</dd>
+                  <dt className="text-muted-foreground">Docente responsable</dt><dd>{r.docente_responsable_nombre ?? "—"}</dd>
+                </dl>
+                {r.requiere_ingreso_30min_antes && <p className="rounded-md bg-accent px-3 py-2">{NOTA_30}</p>}
+                <div>
+                  <p className="font-semibold mb-1">Equipos e insumos</p>
+                  <ul className="text-xs space-y-0.5">{r.reservation_resources?.map((x: Row, i: number) => <li key={i}>{x.quantity} × {x.resources?.name}</li>)}</ul>
+                </div>
+              </>
+            )}
+            {esExterna && form && r.status === "SOLICITADA" && !form.accepts_responsibility && (
               <div className="border rounded-md p-3 space-y-2">
                 <p className="font-semibold">Formato de salida externa (obligatorio para aprobar)</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -66,31 +89,45 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
                 <Button size="sm" onClick={guardar}>Guardar y aceptar responsabilidad</Button>
               </div>
             )}
-            {r.leaves_faculty && form?.accepts_responsibility && (
-              <div className="rounded-xl border p-3 text-xs grid grid-cols-2 gap-1">
-                <p className="col-span-2 font-semibold text-sm flex flex-wrap items-center gap-2">Préstamo y salida externa (VA-SL-FO-010)
-                  <span className={`rounded px-2 py-0.5 ${form.estado === "SALIDA_APROBADA" ? "bg-success/25 text-foreground" : form.estado === "SALIDA_RECHAZADA" ? "bg-destructive/15 text-destructive" : "bg-warning/30 text-foreground"}`}>{ESTADO_SALIDA[form.estado] ?? form.estado}</span>
+            {esExterna && form?.accepts_responsibility && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 text-xs grid grid-cols-2 gap-y-2 gap-x-3">
+                <p className="col-span-2 font-semibold text-sm flex flex-wrap items-center justify-between gap-2 pb-1 border-b">
+                  <span>Préstamo y salida externa (VA-SL-FO-010)</span>
+                  <span className={`rounded px-2 py-0.5 text-xs ${form.estado === "SALIDA_APROBADA" ? "bg-success/25 text-foreground" : form.estado === "SALIDA_RECHAZADA" ? "bg-destructive/15 text-destructive" : "bg-warning/30 text-foreground"}`}>
+                    {ESTADO_SALIDA[form.estado] ?? form.estado}
+                  </span>
                 </p>
-                <span className="text-muted-foreground">Destino</span><span>{form.destination}</span>
-                <span className="text-muted-foreground">Responsable</span><span>{form.responsible_name} · {form.responsible_phone}</span>
+                <span className="text-muted-foreground">Facultad / Programa</span><span>{r.facultad_entidad} · {r.programa}</span>
+                <span className="text-muted-foreground">Destino</span><span className="font-medium">{form.destination}</span>
+                {form.purpose && <><span className="text-muted-foreground">Motivo / objeto</span><span>{form.purpose}</span></>}
+                <span className="text-muted-foreground">Responsable</span><span>{form.responsible_name}{form.responsible_document ? ` · Doc. ${form.responsible_document}` : ""}</span>
                 <span className="text-muted-foreground">Cargo / correo</span><span>{form.cargo ?? "—"} · {form.correo_institucional ?? "—"}</span>
+                <span className="text-muted-foreground">Teléfono</span><span>{form.responsible_phone ?? r.telefono_contacto ?? "—"}</span>
                 <span className="text-muted-foreground">Transporte</span><span>{form.transport_vehicle ?? "—"}</span>
-                <span className="text-muted-foreground">Salida / retorno</span><span>{form.departure_at ? fmt(form.departure_at) : "—"} → {form.return_at ? fmt(form.return_at) : "—"}</span>
-                <span className="text-muted-foreground">Elementos</span><span className="whitespace-pre-wrap">{form.inventory_detail ?? "—"}</span>
-                {form.autoriza_nombre && <><span className="text-muted-foreground">Autoriza (Lab. Simulación)</span><span>{form.autoriza_nombre} · {form.autoriza_cargo}</span></>}
-                {form.observaciones && <><span className="text-muted-foreground">Observaciones</span><span className="whitespace-pre-wrap">{form.observaciones}</span></>}
+                <span className="text-muted-foreground">Salida / retorno</span><span>{form.departure_at ? fmt(form.departure_at) : fmt(r.starts_at)} → {form.return_at ? fmt(form.return_at) : fmt(r.ends_at)}</span>
+                <span className="text-muted-foreground">Elementos</span><span className="whitespace-pre-wrap font-medium">{elementosTexto}</span>
+                {form.autoriza_nombre && <><span className="text-muted-foreground">Autoriza (Lab. Simulación)</span><span>{form.autoriza_nombre}{form.autoriza_cargo ? ` · ${form.autoriza_cargo}` : ""}</span></>}
+                {form.observaciones && <><span className="text-muted-foreground">Respuesta / Observaciones</span><span className="whitespace-pre-wrap">{form.observaciones}</span></>}
               </div>
             )}
-            {r.leaves_faculty && form?.accepts_responsibility && form.estado === "PENDIENTE_AUTORIZACION_SALIDA" && (
+            {r.notes?.trim() && (
+              <div className="rounded-md border bg-accent/40 px-3 py-2">
+                <p className="font-semibold mb-0.5">Observaciones del docente</p>
+                <p className="whitespace-pre-wrap text-foreground">{r.notes}</p>
+              </div>
+            )}
+            {r.rejection_reason && <p className="rounded-md bg-destructive/10 text-destructive px-3 py-2"><strong>Motivo del rechazo:</strong> {r.rejection_reason}</p>}
+            {r.justificacion_cancelacion && <p className="rounded-md bg-muted px-3 py-2"><strong>Justificación de la cancelación:</strong> {r.justificacion_cancelacion}</p>}
+            {esExterna && form?.accepts_responsibility && form.estado === "PENDIENTE_AUTORIZACION_SALIDA" && (
               <AutorizacionSalida r={r} form={form} onChanged={onChanged} />
             )}
             <ChatReserva reservationId={r.id} teacherId={r.teacher_id} />
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>
-              {r.leaves_faculty && form?.estado === "SALIDA_APROBADA" && (
-                <Button variant="outline" size="sm" onClick={() => setPrintSalida(true)}>Imprimir Formato VA-SL-FO-010</Button>
+              {!esExterna && <Button variant="outline" size="sm" onClick={() => setPrint(true)}>Ver formato F-CS-01</Button>}
+              {esExterna && form?.estado === "SALIDA_APROBADA" && (
+                <Button size="sm" onClick={() => setPrintSalida(true)}>Imprimir Formato VA-SL-FO-010</Button>
               )}
-              {["SOLICITADA", "APROBADA"].includes(r.status) && <Button variant="outline" size="sm" onClick={() => setRepro(true)}>Reprogramar</Button>}
+              {!esExterna && ["SOLICITADA", "APROBADA"].includes(r.status) && <Button variant="outline" size="sm" onClick={() => setRepro(true)}>Reprogramar</Button>}
             </div>
             {print && <FormatoPreviewModal r={r} onClose={() => setPrint(false)} />}
             {printSalida && <FormatoSalidaModal r={r} onClose={() => setPrintSalida(false)} />}
@@ -101,9 +138,7 @@ export function DetalleReserva({ r, open, onOpenChange, onChanged }: { r: Row; o
     </>
   );
 }
-
 type ItemSalida = { cantidad: number; descripcion: string; numero_inventario: string };
-
 function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChanged: () => void }) {
   const { data: me } = useSessionUser();
   const [a, setA] = useState({ nombre: "", cargo: "", telefono: "", correo: "", observaciones: "" });
@@ -116,7 +151,6 @@ function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChang
   const [motivo, setMotivo] = useState("");
   const [busy, setBusy] = useState(false);
   if (!me?.isAdmin) return null;
-
   const decidir = async (aprobar: boolean) => {
     setBusy(true);
     const { error } = aprobar
@@ -132,11 +166,10 @@ function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChang
     toast.success(aprobar ? "Salida autorizada" : "Salida rechazada");
     onChanged();
   };
-
   const inp = "border border-input rounded-lg px-2 h-8 bg-background text-foreground text-xs w-full";
   return (
     <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 text-xs">
-      <p className="font-semibold text-sm">Autorización de salida de bienes (etapa 2 · administrador)</p>
+      <p className="font-semibold text-sm">Autorización de salida de bienes (administrador)</p>
       <p className="text-muted-foreground">Dependencia Autorizada: Facultad de Medicina · Dependencia Responsable: Laboratorio de Simulación</p>
       <div className="grid gap-2 sm:grid-cols-2">
         <Input className={inp} placeholder="Nombre de quien autoriza (ej. Juan Carlos Caro Gil)" value={a.nombre} onChange={(e) => setA({ ...a, nombre: e.target.value })} />
@@ -153,7 +186,7 @@ function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChang
             <Input className={inp} placeholder="N° inventario" value={it.numero_inventario} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, numero_inventario: e.target.value } : x))} />
           </div>
         ))}
-        {items.length === 0 && <p className="text-muted-foreground">Sin equipos de la reserva; se usará la relación de elementos del docente.</p>}
+        {items.length === 0 && <p className="text-muted-foreground">Sin equipos de catálogo; se usará la relación de elementos del docente.</p>}
       </div>
       <Textarea placeholder="Observaciones (opcional)" value={a.observaciones} onChange={(e) => setA({ ...a, observaciones: e.target.value })} />
       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -164,7 +197,6 @@ function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChang
     </div>
   );
 }
-
 function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void; onDone: () => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const [dia, setDia] = useState<Date>(new Date(r.starts_at));
@@ -173,7 +205,6 @@ function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void;
   const [busy, setBusy] = useState(false);
   const ymd = format(dia, "yyyy-MM-dd");
   const iso = (t: string) => new Date(`${ymd}T${t}:00-05:00`).toISOString();
-
   const aplicar = async () => {
     setBusy(true);
     const { error } = await supabase.rpc("reprogramar_reserva", { _id: r.id, _starts_at: iso(ini), _ends_at: iso(fin) });
@@ -183,7 +214,6 @@ function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void;
     toast.success("Reserva reprogramada");
     onDone();
   };
-
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
