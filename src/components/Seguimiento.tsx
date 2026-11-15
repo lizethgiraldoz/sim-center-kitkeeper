@@ -100,8 +100,88 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
   const asistio = r.asistencia === "ASISTIO";
   const hayDetalleFalta =
     Object.keys(seleccionados).length > 0 || textoFalta.trim().length > 0;
+  const devuelto = r.salida_estado === "RETORNADO";
+  const sinDevolver = !devuelto && new Date(r.ends_at).getTime() < Date.now();
+  const estadoPrestamo = devuelto
+    ? {
+        label: "Devuelto",
+        dot: "bg-success",
+        badge: "bg-success/15 text-success border-success/30",
+      }
+    : sinDevolver
+      ? {
+          label: "Sin devolver",
+          dot: "bg-destructive",
+          badge: "bg-destructive/15 text-destructive border-destructive/30",
+        }
+      : {
+          label: "En préstamo",
+          dot: "bg-warning",
+          badge: "bg-warning/15 text-warning-foreground border-warning/40",
+        };
+  const marcarDevuelto = async () => {
+    if (r.salida_estado !== "ENTREGADO") {
+      await supabase.rpc("actualizar_seguimiento", {
+        _id: r.id,
+        _campo: "salida",
+        _valor: "ENTREGADO",
+      });
+    }
+    await set("salida", "RETORNADO");
+  };
   return (
     <>
+      {r.leaves_faculty ? (
+        <div className="mt-2 space-y-2 rounded-lg border bg-muted/40 p-2.5 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold">Estado del préstamo:</span>
+              <span
+                className={inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold }
+              >
+                <span className={h-2.5 w-2.5 rounded-full } aria-hidden />
+                {estadoPrestamo.label}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!devuelto ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 bg-success text-success-foreground hover:bg-success/90"
+                  onClick={() => void marcarDevuelto()}
+                >
+                  Marcar como devuelto
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  onClick={() => void set("salida", "ENTREGADO")}
+                >
+                  Reabrir préstamo
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7"
+                onClick={() => abrirFormularioFalta(r.estado_montaje === "FALTA_EQUIPO")}
+              >
+                Reportar faltante
+              </Button>
+            </div>
+          </div>
+          {r.estado_montaje === "FALTA_EQUIPO" && r.falta_equipo && (
+            <div className="flex flex-wrap items-center gap-1.5 text-destructive">
+              <span className="font-medium">Faltante reportado: {r.falta_equipo}</span>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="mt-2 space-y-2 rounded-lg border bg-muted/40 p-2 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">Montaje:</span>
@@ -191,6 +271,7 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
           )}
         </div>
       </div>
+      )}
       <Dialog open={modalFalta} onOpenChange={(o) => !o && setModalFalta(false)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -201,12 +282,16 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
           </DialogHeader>
           <div className="space-y-4 text-sm">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-0.5">
-              <p className="font-semibold text-foreground">{r.activities?.name ?? "Práctica"}</p>
-              <p className="text-muted-foreground">
-                {r.spaces?.name ?? "Sin espacio"} · {fmt(r.starts_at)} – {hora(r.ends_at)}
+              <p className="font-semibold text-foreground">
+                {r.leaves_faculty ? "Préstamo / Salida externa" : (r.activities?.name ?? "Prctica")}
               </p>
               <p className="text-muted-foreground">
-                Docente: {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"}
+                {r.leaves_faculty
+                  ? Préstamo:  – 
+                  : ${r.spaces?.name ?? "Sin espacio"} ·  – }
+              </p>
+              <p className="text-muted-foreground">
+                {r.leaves_faculty ? "Responsable" : "Docente"}: {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"}
               </p>
             </div>
             <div className="space-y-2">
