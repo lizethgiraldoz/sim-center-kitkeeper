@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+import { RelojHora } from "@/components/RelojHora";
 import { fmt, hora, type Row } from "@/lib/app-data";
 import { notifyReservationPush } from "@/lib/push.functions";
 const H0 = 7, H1 = 19;
@@ -282,38 +282,28 @@ export function ModalAprobacion({
                   })}
                 </select>
               </label>
-              <label className="text-xs font-medium text-muted-foreground block">
-                Hora inicio
-                <Input
-                  type="time"
-                  min="07:00"
-                  max="18:45"
-                  className="mt-1 h-9"
+              <div className="text-xs font-medium text-muted-foreground block">
+                <span className="block mb-1">Hora inicio</span>
+                <RelojHora
                   value={fmtHoraDec(s0)}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const v = Math.max(H0, Math.min(H1 - 0.25, parseHoraDec(e.target.value)));
+                  onChange={(val) => {
+                    const v = Math.max(H0, Math.min(H1 - 0.25, parseHoraDec(val)));
                     const dur = Math.max(0.25, s1 - s0);
                     setS0(v);
                     setS1(Math.min(H1, v + dur));
                   }}
                 />
-              </label>
-              <label className="text-xs font-medium text-muted-foreground block">
-                Hora fin
-                <Input
-                  type="time"
-                  min="07:15"
-                  max="19:00"
-                  className="mt-1 h-9"
+              </div>
+              <div className="text-xs font-medium text-muted-foreground block">
+                <span className="block mb-1">Hora fin</span>
+                <RelojHora
                   value={fmtHoraDec(s1)}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const v = Math.max(s0 + 0.25, Math.min(H1, parseHoraDec(e.target.value)));
+                  onChange={(val) => {
+                    const v = Math.max(s0 + 0.25, Math.min(H1, parseHoraDec(val)));
                     setS1(v);
                   }}
                 />
-              </label>
+              </div>
             </div>
             {hayCambios && (
               <div className="text-xs rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-foreground">

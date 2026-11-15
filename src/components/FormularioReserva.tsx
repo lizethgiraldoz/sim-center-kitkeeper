@@ -510,9 +510,9 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               {extras.map((x, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2">
                   <Input type="date" className="w-40" min={format(hoy, "yyyy-MM-dd")} value={x.fecha} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, fecha: e.target.value } : y))} />
-                  <Input type="time" className="w-28" value={x.inicio} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, inicio: e.target.value } : y))} />
+                  <div className="w-28"><RelojHora value={x.inicio} onChange={(v) => setExtras(extras.map((y, j) => j === i ? { ...y, inicio: v } : y))} /></div>
                   a
-                  <Input type="time" className="w-28" max="19:00" value={x.fin} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, fin: e.target.value } : y))} />
+                  <div className="w-28"><RelojHora value={x.fin} onChange={(v) => setExtras(extras.map((y, j) => j === i ? { ...y, fin: v } : y))} /></div>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setExtras(extras.filter((_, j) => j !== i))}>Quitar</Button>
                 </div>
               ))}

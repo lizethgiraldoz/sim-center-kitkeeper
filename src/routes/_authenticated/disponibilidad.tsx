@@ -6,16 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LeyendaColores, PuntoEstado, type EstadoColorKey } from "@/components/EstadoColor";
+import { RelojHora } from "@/components/RelojHora";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { hora, type Row } from "@/lib/app-data";
-
 export const Route = createFileRoute("/_authenticated/disponibilidad")({
   head: () => ({ meta: [{ title: "Disponibilidad y bloqueos · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
-
 const HORAS = Array.from({ length: 12 }, (_, i) => 7 + i); // 07:00–19:00
-
 const ZONAS: [string, string][] = [
   ["PISO_1", "Piso 1"],
   ["PISO_2", "Piso 2"],
@@ -23,7 +21,6 @@ const ZONAS: [string, string][] = [
   ["CASA_SIMULADA", "Casa Simulada"],
   ["AULAS_MOVILES", "Aulas móviles"],
 ];
-
 function TableroSalones({ spaces, res }: { spaces: Row[]; res: Row[] }) {
   const [ini, setIni] = useState("07:00");
   const [fin, setFin] = useState("19:00");
@@ -35,9 +32,13 @@ function TableroSalones({ spaces, res }: { spaces: Row[]; res: Row[] }) {
         <CardTitle className="text-base">Tablero de salones por piso</CardTitle>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>Franja consultada:</span>
-          <Input type="time" className="h-8 w-28" value={ini} onChange={(e) => setIni(e.target.value)} />
+          <div className="w-28">
+            <RelojHora value={ini} onChange={setIni} className="h-8 text-xs px-2.5" />
+          </div>
           <span>a</span>
-          <Input type="time" className="h-8 w-28" value={fin} onChange={(e) => setFin(e.target.value)} />
+          <div className="w-28">
+            <RelojHora value={fin} onChange={setFin} className="h-8 text-xs px-2.5" />
+          </div>
           <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-success" /> Disponible</span>
           <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm bg-destructive" /> Reservado / ocupado (clic para ver detalle)</span>
         </div>
@@ -83,7 +84,6 @@ function TableroSalones({ spaces, res }: { spaces: Row[]; res: Row[] }) {
     </Card>
   );
 }
-
 function Page() {
   const [dia, setDia] = useState(new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }));
   const desde = new Date(`${dia}T00:00:00-05:00`).toISOString();
@@ -104,7 +104,6 @@ function Page() {
     const fin = ini + 3600000;
     return q.data?.res.find((r: Row) => r.space_id === spaceId && new Date(r.starts_at).getTime() < fin && new Date(r.ends_at).getTime() > ini);
   };
-
   return (
     <div className="space-y-6">
       <Titulo t="Tablero de disponibilidad y bloqueos" d="Espacios fijos y aulas móviles por franja horaria" />
