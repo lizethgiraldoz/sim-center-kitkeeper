@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import logo from "@/assets/logo-udea.png.asset.json";
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -20,23 +19,48 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
-
 function Index() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [msg, setMsg] = useState("");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => { if (data.session) navigate({ to: "/nueva-reserva" }); });
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/nueva-reserva" });
+    });
   }, [navigate]);
   const go = async (signup: boolean) => {
-    setMsg("");
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !pw) {
+      setMsg({ text: "Ingresa tu correo y contraseña.", ok: false });
+      return;
+    }
+    setMsg(null);
+    setBusy(true);
     const { data, error } = signup
-      ? await supabase.auth.signUp({ email, password: pw, options: { emailRedirectTo: window.location.origin } })
-      : await supabase.auth.signInWithPassword({ email, password: pw });
-    if (error) return setMsg(error.message);
+      ? await supabase.auth.signUp({
+          email: cleanEmail,
+          password: pw,
+          options: { emailRedirectTo: window.location.origin },
+        })
+      : await supabase.auth.signInWithPassword({ email: cleanEmail, password: pw });
+    setBusy(false);
+    if (error) {
+      setMsg({ text: error.message, ok: false });
+      return;
+    }
     if (signup) window.__lovableEvents?.track?.("project.teacher_signup", {});
-    if (data.session) { qc.clear(); navigate({ to: "/nueva-reserva" }); }
-    else if (signup) setMsg("Revisa tu correo para confirmar la cuenta.");
+    if (data.session) {
+      qc.clear();
+      navigate({ to: "/nueva-reserva" });
+    } else if (signup) {
+      setMsg({
+        text: "Registro creado. Si no recibes el correo de confirmación, solicita al administrador activar tu cuenta.",
+        ok: true,
+      });
+    }
   };
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 bg-muted p-4">
@@ -48,13 +72,32 @@ function Index() {
       <Card className="w-full max-w-sm border-t-4 border-t-primary">
         <CardHeader><CardTitle>Ingresar</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Input placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input placeholder="Contraseña" type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go(false)} />
+          <Input
+            placeholder="Correo"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <Input
+            placeholder="Contraseña"
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !busy && go(false)}
+          />
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={() => go(false)}>Iniciar sesión</Button>
-            <Button variant="outline" onClick={() => go(true)}>Registrarse</Button>
+            <Button className="flex-1" disabled={busy} onClick={() => go(false)}>
+              {busy ? "Procesando..." : "Iniciar sesión"}
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => go(true)}>
+              Registrarse
+            </Button>
           </div>
-          {msg && <p className="text-sm text-destructive">{msg}</p>}
+          {msg && (
+            <p className={`text-sm ${msg.ok ? "text-primary font-medium" : "text-destructive"}`}>
+              {msg.text}
+            </p>
+          )}
         </CardContent>
       </Card>
     </main>
