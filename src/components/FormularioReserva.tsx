@@ -383,6 +383,16 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       onDone("Solicitud de préstamo y salida externa enviada para autorización del Laboratorio de Simulación.");
       return;
     }
+    const semNum = Math.floor(Number(h.semestre));
+    if (!h.semestre || Number.isNaN(semNum) || semNum < 1 || semNum > 13) {
+      setErr("El semestre debe estar entre 1 y 13.");
+      return;
+    }
+    const partNum = Math.floor(Number(h.participants));
+    if (!Number.isFinite(partNum) || partNum < 1 || partNum > 35) {
+      setErr("El número de participantes debe estar entre 1 y 35.");
+      return;
+    }
     if (d.date < hoy) { setErr("No se pueden solicitar reservas en fechas pasadas."); return; }
     if (d.end > "19:00") { setErr("El horario solicitado supera el límite operativo permitido (19:00 hrs). Requiere autorización especial."); return; }
     if (sinStock.length) { setErr(`El recurso ${sinStock[0]?.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
@@ -636,8 +646,54 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                 {Object.keys(FACULTADES).map((f) => <option key={f}>{f}</option>)}</select></L>
               <L t="Programa"><select className={sel} value={h.programa} onChange={(e) => setH({ ...h, programa: e.target.value })}>
                 {(FACULTADES[h.facultad_entidad] ?? []).map((p) => <option key={p}>{p}</option>)}</select></L>
-              <L t="Semestre"><Input type="number" className="w-full min-w-0" value={h.semestre} onChange={(e) => setH({ ...h, semestre: e.target.value })} /></L>
-              <L t="No. de participantes"><Input type="number" className="w-full min-w-0" value={h.participants} onChange={(e) => setH({ ...h, participants: +e.target.value })} /></L>
+              <L t="Semestre (1 a 13)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={13}
+                  step={1}
+                  className="w-full min-w-0"
+                  value={h.semestre}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setH({ ...h, semestre: "" });
+                      return;
+                    }
+                    const n = Math.floor(Number(raw));
+                    if (Number.isNaN(n)) return;
+                    setH({ ...h, semestre: String(Math.max(1, Math.min(13, n))) });
+                  }}
+                  onBlur={() => {
+                    const n = Math.floor(Number(h.semestre));
+                    setH({ ...h, semestre: String(!h.semestre || Number.isNaN(n) ? 1 : Math.max(1, Math.min(13, n))) });
+                  }}
+                />
+              </L>
+              <L t="No. de participantes (1 a 35)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={35}
+                  step={1}
+                  className="w-full min-w-0"
+                  value={h.participants || ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setH({ ...h, participants: 0 });
+                      return;
+                    }
+                    const n = Math.floor(Number(raw));
+                    if (Number.isNaN(n)) return;
+                    setH({ ...h, participants: Math.max(1, Math.min(35, n)) });
+                  }}
+                  onBlur={() => {
+                    const n = Math.floor(Number(h.participants));
+                    setH({ ...h, participants: !n || Number.isNaN(n) ? 1 : Math.max(1, Math.min(35, n)) });
+                  }}
+                />
+              </L>
               <L t="Persona que hace la reserva"><Input className="w-full min-w-0 truncate" placeholder="Nombre completo" value={h.solicitante_nombre} onChange={(e) => setH({ ...h, solicitante_nombre: e.target.value })} /></L>
               <L t="Doc. #"><Input className="w-full min-w-0 truncate" placeholder="N° documento" value={h.solicitante_documento} onChange={(e) => setH({ ...h, solicitante_documento: e.target.value })} /></L>
               <L t="Docente responsable"><Input className="w-full min-w-0 truncate" placeholder="Nombre del docente" value={h.docente_responsable_nombre} onChange={(e) => setH({ ...h, docente_responsable_nombre: e.target.value })} /></L>
