@@ -42,7 +42,7 @@ const PROGRAMAS_POR_PRACTICA: Record<string, string[]> = {
   "admon de medicamentos": ["APH"],
   "diagnostico individual": ["APH"],
   "promoción y prevención": ["APH"],
-  "otro": ["Instrumentación Quirúrgica", "APH"],
+  "otro": ["Instrumentación Quirúrgica", "APH", "Medicina", "Posgrados"],
   "abp comunicaciones en salud": ["Medicina"],
   "anatomia": ["Medicina"],
   "anatomia del sistema endocrino": ["Medicina"],
