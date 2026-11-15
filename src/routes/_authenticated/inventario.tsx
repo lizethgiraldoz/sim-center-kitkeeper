@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
@@ -115,6 +115,9 @@ function evaluarCoincidencia(query: string, r: Row): { score: number; exacta: bo
 function Page() {
   const [textoBusqueda, setTextoBusqueda] = useState("");
   const [filtroAplicado, setFiltroAplicado] = useState("");
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const topInnerRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const q = useQuery({
     queryKey: ["inventario"],
     queryFn: async () => {
@@ -174,6 +177,44 @@ function Page() {
     setTextoBusqueda("");
     setFiltroAplicado("");
   };
+  useEffect(() => {
+    const topEl = topScrollRef.current;
+    const topInner = topInnerRef.current;
+    const container = tableContainerRef.current;
+    if (!topEl || !topInner || !container) return;
+    const tableEl = container.querySelector("table");
+    const innerScroller =
+      tableEl?.parentElement && tableEl.parentElement !== container
+        ? tableEl.parentElement
+        : container;
+    const updateWidth = () => {
+      const scrollW = tableEl ? tableEl.scrollWidth : innerScroller.scrollWidth;
+      const clientW = innerScroller.clientWidth;
+      topInner.style.width = `${scrollW}px`;
+      topEl.style.display = scrollW > clientW + 1 ? "block" : "none";
+    };
+    const onTopScroll = () => {
+      if (Math.abs(innerScroller.scrollLeft - topEl.scrollLeft) > 1) {
+        innerScroller.scrollLeft = topEl.scrollLeft;
+      }
+    };
+    const onBottomScroll = () => {
+      if (Math.abs(topEl.scrollLeft - innerScroller.scrollLeft) > 1) {
+        topEl.scrollLeft = innerScroller.scrollLeft;
+      }
+    };
+    updateWidth();
+    topEl.addEventListener("scroll", onTopScroll, { passive: true });
+    innerScroller.addEventListener("scroll", onBottomScroll, { passive: true });
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(innerScroller);
+    if (tableEl) ro.observe(tableEl);
+    return () => {
+      topEl.removeEventListener("scroll", onTopScroll);
+      innerScroller.removeEventListener("scroll", onBottomScroll);
+      ro.disconnect();
+    };
+  }, [recursosFiltrados]);
   return (
     <div>
       <Titulo t="Inventario y quirófano" d="Cantidades por estado; lo reservado se calcula solo con las reservas aprobadas" />
@@ -228,7 +269,13 @@ function Page() {
             </p>
           )}
           <Card>
-            <CardContent className="p-0 overflow-x-auto">
+            <div
+              ref={topScrollRef}
+              className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border-b bg-card"
+            >
+              <div ref={topInnerRef} className="h-px" />
+            </div>
+            <CardContent ref={tableContainerRef} className="p-0 overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
