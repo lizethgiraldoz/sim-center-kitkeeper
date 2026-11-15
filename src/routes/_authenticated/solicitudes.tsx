@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Truck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,9 +21,59 @@ export const Route = createFileRoute("/_authenticated/solicitudes")({
   head: () => ({ meta: [{ title: "Gestión de solicitudes · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
+function normalizarTexto(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = dp[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+      prev = temp;
+    }
+  }
+  return dp[b.length];
+}
+function coincideDocente(consulta: string, r: Row): boolean {
+  const q = normalizarTexto(consulta);
+  if (!q) return true;
+  const target = normalizarTexto(
+    `${r.docente_responsable_nombre ?? ""} ${r.solicitante_nombre ?? ""}`
+  );
+  if (!target) return false;
+  if (target.includes(q)) return true;
+  const qTokens = q.split(" ").filter(Boolean);
+  const tWords = target.split(" ").filter(Boolean);
+  return qTokens.every((qt) =>
+    tWords.some((tw) => {
+      if (tw.includes(qt) || (qt.includes(tw) && tw.length >= 3)) return true;
+      if (qt.length >= 3 && tw.length >= 3) {
+        const dist = levenshtein(qt, tw);
+        const sim = 1 - dist / Math.max(qt.length, tw.length);
+        return sim >= 0.72;
+      }
+      return false;
+    })
+  );
+}
 function Page() {
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState("SOLICITADA");
+  const [textoDocente, setTextoDocente] = useState("");
+  const [busquedaDocente, setBusquedaDocente] = useState("");
   const q = useQuery({
     queryKey: ["reservas", "todas"],
     queryFn: async () =>
@@ -48,34 +99,88 @@ function Page() {
     q.refetch();
     return !error;
   };
-  const rows = [...(q.data ?? [])]
-    .filter((r: Row) => filtro === "TODAS" || r.status === filtro)
-    .sort((a: Row, b: Row) => {
-      const formA = Array.isArray(a.external_borrow_forms) ? a.external_borrow_forms[0] : a.external_borrow_forms;
-      const formB = Array.isArray(b.external_borrow_forms) ? b.external_borrow_forms[0] : b.external_borrow_forms;
-      const fechaA = new Date(formA?.departure_at ?? a.starts_at).getTime();
-      const fechaB = new Date(formB?.departure_at ?? b.starts_at).getTime();
-      if (fechaA !== fechaB) return fechaA - fechaB;
-      const creadaA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const creadaB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (creadaA !== creadaB) return creadaA - creadaB;
-      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
-    });
+  const rows = useMemo(() => {
+    return [...(q.data ?? [])]
+      .filter((r: Row) => filtro === "TODAS" || r.status === filtro)
+      .filter((r: Row) => coincideDocente(busquedaDocente, r))
+      .sort((a: Row, b: Row) => {
+        const formA = Array.isArray(a.external_borrow_forms) ? a.external_borrow_forms[0] : a.external_borrow_forms;
+        const formB = Array.isArray(b.external_borrow_forms) ? b.external_borrow_forms[0] : b.external_borrow_forms;
+        const fechaA = new Date(formA?.departure_at ?? a.starts_at).getTime();
+        const fechaB = new Date(formB?.departure_at ?? b.starts_at).getTime();
+        if (fechaA !== fechaB) return fechaA - fechaB;
+        const creadaA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const creadaB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (creadaA !== creadaB) return creadaA - creadaB;
+        return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+      });
+  }, [q.data, filtro, busquedaDocente]);
+  const ejecutarBusqueda = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setBusquedaDocente(textoDocente.trim());
+  };
+  const limpiarBusqueda = () => {
+    setTextoDocente("");
+    setBusquedaDocente("");
+  };
   return (
     <div>
       <Titulo
         t="Gestión de solicitudes"
         d="Aprobar prácticas internas bloquea salones y recursos; los préstamos externos se gestionan en su módulo exclusivo"
       />
-      <Tabs value={filtro} onValueChange={setFiltro} className="mb-4">
-        <TabsList className="flex-wrap h-auto">
-          {["SOLICITADA", "APROBADA", "RECHAZADA", "CANCELADA", "TODAS"].map((s) => (
-            <TabsTrigger key={s} value={s}>
-              {s === "TODAS" ? "Todas" : s.charAt(0) + s.slice(1).toLowerCase()}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <Tabs value={filtro} onValueChange={setFiltro}>
+          <TabsList className="flex-wrap h-auto">
+            {["SOLICITADA", "APROBADA", "RECHAZADA", "CANCELADA", "TODAS"].map((s) => (
+              <TabsTrigger key={s} value={s}>
+                {s === "TODAS" ? "Todas" : s.charAt(0) + s.slice(1).toLowerCase()}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <form onSubmit={ejecutarBusqueda} className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[230px] sm:w-64">
+            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              value={textoDocente}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTextoDocente(val);
+                if (!val.trim()) setBusquedaDocente("");
+              }}
+              placeholder="Buscar por docente responsable..."
+              className="pl-9 pr-8 h-9 bg-background text-sm"
+            />
+            {textoDocente && (
+              <button
+                type="button"
+                onClick={limpiarBusqueda}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <Button type="submit" size="sm" className="h-9">
+            <Search className="h-4 w-4 mr-1.5" />
+            Buscar
+          </Button>
+          {busquedaDocente && (
+            <Button type="button" size="sm" variant="outline" className="h-9" onClick={limpiarBusqueda}>
+              Ver todas
+            </Button>
+          )}
+        </form>
+      </div>
+      {busquedaDocente && (
+        <p className="text-xs text-muted-foreground mb-3">
+          {rows.length === 0
+            ? `No se encontraron solicitudes del docente "${busquedaDocente}" en esta pestaña.`
+            : `Mostrando ${rows.length} solicitud(es) para el docente "${busquedaDocente}":`}
+        </p>
+      )}
       <div className="space-y-3">
         {rows.length === 0 && <p className="text-sm text-muted-foreground">No hay solicitudes en este estado.</p>}
         {rows.map((r: Row) => {
