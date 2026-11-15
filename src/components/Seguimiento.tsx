@@ -120,6 +120,13 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
           badge: "bg-warning/15 text-warning-foreground border-warning/40",
         };
   const marcarDevuelto = async () => {
+    if (r.estado_montaje === "FALTA_EQUIPO" || r.falta_equipo) {
+      await supabase.rpc("actualizar_seguimiento", {
+        _id: r.id,
+        _campo: "montaje",
+        _valor: "LISTO",
+      });
+    }
     if (r.salida_estado !== "ENTREGADO") {
       await supabase.rpc("actualizar_seguimiento", {
         _id: r.id,
@@ -175,7 +182,7 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
               </Button>
             </div>
           </div>
-          {r.estado_montaje === "FALTA_EQUIPO" && r.falta_equipo && (
+          {!devuelto && r.estado_montaje === "FALTA_EQUIPO" && r.falta_equipo && (
             <div className="flex flex-wrap items-center gap-1.5 text-destructive">
               <span className="font-medium">Faltante reportado: {r.falta_equipo}</span>
             </div>
