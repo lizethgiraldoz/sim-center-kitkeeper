@@ -268,27 +268,33 @@ function Page() {
                   : `Mostrando ${recursosFiltrados.length} resultado(s) para "${filtroAplicado}":`}
             </p>
           )}
-          <Card>
-            <div
-              ref={topScrollRef}
-              className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border-b bg-card"
-            >
-              <div ref={topInnerRef} className="h-px" />
+          <Card className="overflow-hidden">
+            <div className="border-b bg-muted/30 pt-1 pb-0.5">
+              <div
+                ref={topScrollRef}
+                className="overflow-x-auto overflow-y-hidden"
+                aria-label="Desplazamiento horizontal superior"
+              >
+                <div ref={topInnerRef} className="h-1" />
+              </div>
             </div>
-            <CardContent ref={tableContainerRef} className="p-0 overflow-x-auto">
+            <CardContent
+              ref={tableContainerRef}
+              className="p-0 [&>div]:max-h-[calc(100vh-16.5rem)] [&>div]:min-h-[340px] [&>div]:overflow-auto"
+            >
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Recurso</TableHead>
-                    <TableHead>N° inventario</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Mantenimiento</TableHead>
-                    <TableHead>Fuera de servicio</TableHead>
-                    <TableHead className="text-right">Reservados activos</TableHead>
-                    <TableHead className="text-right">Disponible</TableHead>
-                    <TableHead>Estado general</TableHead>
+                <TableHeader className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  <TableRow className="hover:bg-muted">
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Recurso</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">N° inventario</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Descripción</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Tipo</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Total</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Mantenimiento</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Fuera de servicio</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Reservados activos</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Disponible</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Estado general</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
