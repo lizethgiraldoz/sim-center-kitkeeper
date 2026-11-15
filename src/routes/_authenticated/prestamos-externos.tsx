@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Truck, CheckCircle2, XCircle, Clock, PackageCheck, Search,
+  Truck, CheckCircle2, XCircle, Clock, PackageCheck, Search, X,
   MessageSquare, Printer, AlertTriangle, ArrowRight, Boxes,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -71,11 +71,61 @@ function infoTemporal(inicioIso?: string | null, finIso?: string | null, salidaE
 function getForm(r: Row) {
   return Array.isArray(r?.external_borrow_forms) ? r.external_borrow_forms[0] : r?.external_borrow_forms;
 }
+function normalizarTexto(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = dp[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+      prev = temp;
+    }
+  }
+  return dp[b.length];
+}
+function coincideResponsablePrestamo(consulta: string, r: Row): boolean {
+  const q = normalizarTexto(consulta);
+  if (!q) return true;
+  const form = getForm(r);
+  const target = normalizarTexto(
+    `${form?.responsible_name ?? ""} ${r.docente_responsable_nombre ?? ""} ${r.solicitante_nombre ?? ""}`
+  );
+  if (!target) return false;
+  if (target.includes(q)) return true;
+  const qTokens = q.split(" ").filter(Boolean);
+  const tWords = target.split(" ").filter(Boolean);
+  return qTokens.every((qt) =>
+    tWords.some((tw) => {
+      if (tw.includes(qt) || (qt.includes(tw) && tw.length >= 3)) return true;
+      if (qt.length >= 3 && tw.length >= 3) {
+        const dist = levenshtein(qt, tw);
+        return 1 - dist / Math.max(qt.length, tw.length) >= 0.72;
+      }
+      return false;
+    })
+  );
+}
 function Page() {
   const { id: selectedIdFromUrl } = Route.useSearch();
   const noLeidos = useNoLeidos();
   const [tabPrincipal, setTabPrincipal] = useState("solicitudes");
   const [filtroSol, setFiltroSol] = useState("PENDIENTES");
+  const [textoDocenteSol, setTextoDocenteSol] = useState("");
+  const [busquedaDocenteSol, setBusquedaDocenteSol] = useState("");
   const [busquedaInv, setBusquedaInv] = useState("");
   const [filtroInv, setFiltroInv] = useState<"TODOS" | "LIBRES" | "PRESTADOS" | "EXTERNOS">("TODOS");
   const [gestionar, setGestionar] = useState<Row | null>(null);
@@ -152,12 +202,12 @@ function Page() {
       const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
       const aprobada = r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO";
       const historial = r.status === "RECHAZADA" || r.status === "CANCELADA" || form?.estado === "SALIDA_RECHAZADA" || r.salida_estado === "RETORNADO";
-      if (filtroSol === "PENDIENTES") return pendiente;
-      if (filtroSol === "ACTIVOS") return aprobada;
-      if (filtroSol === "HISTORIAL") return historial;
-      return true;
+            if (filtroSol === "PENDIENTES" && !pendiente) return false;
+      if (filtroSol === "ACTIVOS" && !aprobada) return false;
+      if (filtroSol === "HISTORIAL" && !historial) return false;
+      return coincideResponsablePrestamo(busquedaDocenteSol, r);
     });
-  }, [q.data?.externas, filtroSol]);
+  }, [q.data?.externas, filtroSol, busquedaDocenteSol]);
   const recursosFiltrados = useMemo(() => {
     const term = busquedaInv.trim().toLowerCase();
     return (q.data?.recursos ?? []).filter((rec: Row) => {
@@ -231,23 +281,84 @@ function Page() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="solicitudes" className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: "PENDIENTES", label: "Pendientes de decisión" },
-              { id: "ACTIVOS", label: "Aprobados / En préstamo" },
-              { id: "HISTORIAL", label: "Devueltos / Rechazados" },
-              { id: "TODAS", label: "Todas" },
-            ].map((f) => (
-              <Button
-                key={f.id}
-                size="sm"
-                variant={filtroSol === f.id ? "default" : "outline"}
-                onClick={() => setFiltroSol(f.id)}
-              >
-                {f.label}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "PENDIENTES", label: "Pendientes de decisión" },
+                { id: "ACTIVOS", label: "Aprobados / En préstamo" },
+                { id: "HISTORIAL", label: "Devueltos / Rechazados" },
+                { id: "TODAS", label: "Todas" },
+              ].map((f) => (
+                <Button
+                  key={f.id}
+                  size="sm"
+                  variant={filtroSol === f.id ? "default" : "outline"}
+                  onClick={() => setFiltroSol(f.id)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setBusquedaDocenteSol(textoDocenteSol.trim());
+              }}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <div className="relative min-w-[230px] sm:w-64">
+                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Input
+                  value={textoDocenteSol}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTextoDocenteSol(val);
+                    if (!val.trim()) setBusquedaDocenteSol("");
+                  }}
+                  placeholder="Buscar por docente o responsable..."
+                  className="pl-9 pr-8 h-9 bg-background text-sm"
+                />
+                {textoDocenteSol && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTextoDocenteSol("");
+                      setBusquedaDocenteSol("");
+                    }}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button type="submit" size="sm" className="h-9">
+                <Search className="h-4 w-4 mr-1.5" />
+                Buscar
               </Button>
-            ))}
+              {busquedaDocenteSol && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => {
+                    setTextoDocenteSol("");
+                    setBusquedaDocenteSol("");
+                  }}
+                >
+                  Ver todas
+                </Button>
+              )}
+            </form>
           </div>
+          {busquedaDocenteSol && (
+            <p className="text-xs text-muted-foreground">
+              {externasFiltradas.length === 0
+                ? `No se encontraron préstamos externos para "${busquedaDocenteSol}" en esta categoría.`
+                : `Mostrando ${externasFiltradas.length} préstamo(s) externo(s) para "${busquedaDocenteSol}":`}
+            </p>
+          )}
           {externasFiltradas.length === 0 && (
             <Card>
               <CardContent className="p-6 text-sm text-muted-foreground">
