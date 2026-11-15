@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon, Truck } from "lucide-react";
@@ -217,16 +218,40 @@ function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void;
   };
   const [ini, setIni] = useState(() => toHora24(r.starts_at));
   const [fin, setFin] = useState(() => toHora24(r.ends_at));
+  const { data: me } = useSessionUser();
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const ymd = format(dia, "yyyy-MM-dd");
   const iso = (t: string) => new Date(`${ymd}T${t}:00-05:00`).toISOString();
   const aplicar = async () => {
     setBusy(true);
-    const { error } = await supabase.rpc("reprogramar_reserva", { _id: r.id, _starts_at: iso(ini), _ends_at: iso(fin) });
+    const nuevoStartsAt = iso(ini);
+    const nuevoEndsAt = iso(fin);
+    const { error } = await supabase.rpc("reprogramar_reserva", { _id: r.id, _starts_at: nuevoStartsAt, _ends_at: nuevoEndsAt });
+    if (error) { setBusy(false); toast.error(error.message); return; }
+    const cambioHorario =
+      new Date(nuevoStartsAt).getTime() !== new Date(r.starts_at).getTime() ||
+      new Date(nuevoEndsAt).getTime() !== new Date(r.ends_at).getTime();
+    if (cambioHorario) {
+      const aviso = me?.isAdmin
+        ? `Reprogramación realizada por administración: de ${fmt(r.starts_at)} – ${hora(r.ends_at)} a ${fmt(nuevoStartsAt)} – ${hora(nuevoEndsAt)}${r.spaces?.name ? ` en ${r.spaces.name}` : ""}. Los equipos e insumos se mantienen.`
+        : `Reprogramación realizada por el docente: de ${fmt(r.starts_at)} – ${hora(r.ends_at)} a ${fmt(nuevoStartsAt)} – ${hora(nuevoEndsAt)}.`;
+      await supabase.from("reservation_messages").insert({
+        reservation_id: r.id,
+        mensaje: aviso,
+      });
+      void qc.invalidateQueries({ queryKey: ["chat", r.id] });
+      void notifyReservationPush({
+        data: {
+          reservationId: r.id,
+          title: "Reserva reprogramada",
+          body: `${r.activities?.name ?? "Tu reserva"} fue reprogramada para ${fmt(nuevoStartsAt)} – ${hora(nuevoEndsAt)}.`,
+        },
+      }).catch(() => {});
+    }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
     window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "REPROGRAMADA" });
-    toast.success("Reserva reprogramada");
+    toast.success(cambioHorario ? "Reserva reprogramada y mensaje enviado al chat" : "Reserva reprogramada");
     onDone();
   };
   return (
