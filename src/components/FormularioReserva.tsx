@@ -175,6 +175,12 @@ const KIND: Record<string, string> = {
   INSUMO: "Insumo",
   PAQUETE_QUIRURGICO: "Paquete quirúrgico",
 };
+function formatearSeriales(rawInv?: string | null, cantidad = 1): string {
+  if (!rawInv || !rawInv.trim()) return "";
+  const partes = rawInv.split(",").map((p) => p.trim()).filter(Boolean);
+  if (!partes.length) return "";
+  return partes.slice(0, Math.max(1, cantidad)).join(", ");
+}
 const sel = "border border-input rounded-lg px-2.5 h-9 bg-background text-foreground text-sm w-full min-w-0 truncate shadow-sm";
 const L = ({ t, children, className = "" }: { t: string; children: React.ReactNode; className?: string }) => (
   <label className={`space-y-1 text-xs font-medium text-muted-foreground block min-w-0 ${className}`}>
@@ -319,7 +325,10 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
   };
   const inventarioDetalleTexto = useMemo(() => {
     return prestamoItems
-      .map((it) => `${it.cantidad} × ${it.descripcion}${it.numero_inventario ? ` (Inv: ${it.numero_inventario})` : it.esOtro ? " [Otro]" : ""}`)
+      .map((it) => {
+        const inv = formatearSeriales(it.numero_inventario, it.cantidad);
+        return `${it.cantidad} × ${it.descripcion}${inv ? ` (Inv: ${inv})` : it.esOtro ? " [Otro]" : ""}`;
+      })
       .join("\n");
   }, [prestamoItems]);
   const submit = async () => {
@@ -548,12 +557,9 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                       {catalogoInv.map((rec: Row) => {
                         const activos = Math.max(0, (rec.quantity_total ?? 0) - (rec.maintenance_quantity ?? 0) - (rec.out_of_service_quantity ?? 0));
                         const noDisp = rec.status !== "DISPONIBLE" || activos <= 0;
-                        const tag = noDisp
-                          ? `No disponible (${rec.status})`
-                          : `${activos} unid. en inventario${rec.allows_external_exit ? "" : " · Solo interno"}`;
                         return (
                           <option key={rec.id} value={rec.id} disabled={noDisp}>
-                            {rec.name}{rec.numero_inventario ? ` [Inv: ${rec.numero_inventario}]` : ""} — {KIND[rec.resource_categories?.kind] ?? rec.resource_categories?.name ?? "Recurso"} ({tag})
+                            {rec.name}
                           </option>
                         );
                       })}
@@ -599,7 +605,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                           </span>
                         )}
                       </span>
-                      <span className="text-muted-foreground truncate">{it.numero_inventario || "—"}</span>
+                      <span className="text-muted-foreground truncate">{formatearSeriales(it.numero_inventario, it.cantidad) || "—"}</span>
                       <Button
                         type="button"
                         size="icon"
