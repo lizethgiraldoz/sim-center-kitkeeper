@@ -25,7 +25,14 @@ function Page() {
   const [filtro, setFiltro] = useState("SOLICITADA");
   const q = useQuery({
     queryKey: ["reservas", "todas"],
-    queryFn: async () => (await supabase.from("reservations").select(RESERVA_SELECT).order("starts_at")).data ?? [],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("reservations")
+          .select(RESERVA_SELECT)
+          .order("starts_at", { ascending: true })
+          .order("created_at", { ascending: true })
+      ).data ?? [],
   });
   const { data: cat } = useCatalogos();
   const noLeidos = useNoLeidos();
@@ -41,7 +48,19 @@ function Page() {
     q.refetch();
     return !error;
   };
-  const rows = (q.data ?? []).filter((r: Row) => filtro === "TODAS" || r.status === filtro);
+  const rows = [...(q.data ?? [])]
+    .filter((r: Row) => filtro === "TODAS" || r.status === filtro)
+    .sort((a: Row, b: Row) => {
+      const formA = Array.isArray(a.external_borrow_forms) ? a.external_borrow_forms[0] : a.external_borrow_forms;
+      const formB = Array.isArray(b.external_borrow_forms) ? b.external_borrow_forms[0] : b.external_borrow_forms;
+      const fechaA = new Date(formA?.departure_at ?? a.starts_at).getTime();
+      const fechaB = new Date(formB?.departure_at ?? b.starts_at).getTime();
+      if (fechaA !== fechaB) return fechaA - fechaB;
+      const creadaA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const creadaB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (creadaA !== creadaB) return creadaA - creadaB;
+      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+    });
   return (
     <div>
       <Titulo
