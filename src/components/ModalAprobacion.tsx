@@ -29,14 +29,28 @@ const parseHoraDec = (hhmm: string) => {
   const [hh, mm] = hhmm.split(":").map(Number);
   return (hh ?? 0) + (mm ?? 0) / 60;
 };
-export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces: Row[]; onClose: () => void; onDone: () => void }) {
+export function ModalAprobacion({
+  r,
+  spaces,
+  modo = "aprobar",
+  onClose,
+  onDone,
+}: {
+  r: Row;
+  spaces: Row[];
+  modo?: "aprobar" | "reasignar";
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const esReasignar = modo === "reasignar";
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const origDia = new Date(r.starts_at);
   const origYmd = diaBogota(origDia);
   const origS0 = Math.max(H0, Math.min(H1 - 0.25, horas(r.starts_at)));
   const origS1 = Math.max(origS0 + 0.25, Math.min(H1, horas(r.ends_at)));
-  const [space, setSpace] = useState<string>(r.space_id ?? "");
+  const origSpace = r.space_id ?? "";
+  const [space, setSpace] = useState<string>(origSpace);
   const [dia, setDia] = useState<Date>(origDia);
   const [s0, setS0] = useState<number>(origS0);
   const [s1, setS1] = useState<number>(origS1);
@@ -127,15 +141,59 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
     ymd !== origYmd ||
     Math.round(s0 * 60) !== Math.round(origS0 * 60) ||
     Math.round(s1 * 60) !== Math.round(origS1 * 60);
+  const espacioModificado = space !== origSpace;
+  const hayCambios = horarioModificado || (esReasignar && espacioModificado);
   const restaurarOriginal = () => {
     setDia(new Date(r.starts_at));
     setS0(origS0);
     setS1(origS1);
+    if (esReasignar) setSpace(origSpace);
   };
   const confirmar = async () => {
     setBusy(true);
     const nuevoStartsAt = new Date(`${ymd}T${fmtHoraDec(s0)}:00-05:00`).toISOString();
     const nuevoEndsAt = new Date(`${ymd}T${fmtHoraDec(s1)}:00-05:00`).toISOString();
+    if (esReasignar) {
+      if (horarioModificado) {
+        const { error: errRepro } = await supabase.rpc("reprogramar_reserva", {
+          _id: r.id,
+          _starts_at: nuevoStartsAt,
+          _ends_at: nuevoEndsAt,
+        });
+        if (errRepro) {
+          setBusy(false);
+          toast.error(errRepro.message);
+          return;
+        }
+      }
+      if (espacioModificado) {
+        const { error: errReasig } = await supabase.rpc("reasignar_espacio", {
+          _id: r.id,
+          _new_space_id: space,
+        });
+        if (errReasig) {
+          setBusy(false);
+          toast.error(errReasig.message);
+          return;
+        }
+      }
+      const aviso = `Reasignación realizada por administración: de ${r.spaces?.name ?? "Sin espacio"} (${fmt(r.starts_at)} – ${hora(r.ends_at)}) a ${espacioSel?.name ?? "Espacio asignado"} (${fmt(nuevoStartsAt)} – ${hora(nuevoEndsAt)}). Los equipos e insumos se mantienen.`;
+      await supabase.from("reservation_messages").insert({
+        reservation_id: r.id,
+        mensaje: aviso,
+      });
+      setBusy(false);
+      void notifyReservationPush({
+        data: {
+          reservationId: r.id,
+          title: "Reserva reasignada",
+          body: `${r.activities?.name ?? "Tu reserva"} fue reasignada a ${espacioSel?.name ?? "nuevo espacio"} para ${fmt(nuevoStartsAt)} – ${hora(nuevoEndsAt)}.`,
+        },
+      }).catch(() => {});
+      toast.success("Espacio y/o fecha reasignados y docente notificado");
+      onDone();
+      return;
+    }
     if (horarioModificado) {
       const { error: errRepro } = await supabase.rpc("reprogramar_reserva", {
         _id: r.id,
@@ -179,15 +237,16 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Confirmación y verificación de aprobación</DialogTitle>
+          <DialogTitle>{esReasignar ? "Reasignar espacio o fecha" : "Confirmación y verificación de aprobación"}</DialogTitle>
         </DialogHeader>
         <div className="text-sm rounded-xl bg-primary/5 border p-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <strong>{r.activities?.name}</strong> · Solicitado: {fmt(r.starts_at)} – {hora(r.ends_at)} · {r.participants} participantes · {r.programa}
+            <strong>{r.activities?.name}</strong> · Actual: {r.spaces?.name ? `${r.spaces.name} · ` : ""}
+            {fmt(r.starts_at)} – {hora(r.ends_at)} · {r.participants} participantes · {r.programa}
           </div>
-          {horarioModificado && (
+          {hayCambios && (
             <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={restaurarOriginal}>
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar horario original
+              <RotateCcw className="h-3.5 w-3.5 mr-1" />Restaurar original
             </Button>
           )}
         </div>
@@ -256,11 +315,12 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
                 />
               </label>
             </div>
-            {horarioModificado && (
+            {hayCambios && (
               <div className="text-xs rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-foreground">
-                <strong>Nuevo horario asignado:</strong>{" "}
+                <strong>{esReasignar ? "Nueva asignación:" : "Nuevo horario asignado:"}</strong>{" "}
+                {espacioSel ? `${espacioSel.name} · ` : ""}
                 {dia.toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", year: "numeric" })} ·{" "}
-                <strong>{fmtHoraDec(s0)} – {fmtHoraDec(s1)}</strong>. Al confirmar se actualizará la reserva y se enviará aviso al docente.
+                <strong>{fmtHoraDec(s0)} – {fmtHoraDec(s1)}</strong>. Los equipos e insumos se mantienen y se notificará al docente.
               </div>
             )}
             {aforoInsuficiente && (
@@ -278,7 +338,7 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
                 ))}
               </div>
               {spaces.map((s: Row) => {
-                const rs = (occ.data ?? []).filter((x: Row) => x.space_id === s.id);
+                const rs = (occ.data ?? []).filter((x: Row) => x.space_id === s.id && x.id !== r.id);
                 const deshabilitado = r.participants > s.capacity || s.status === "EN_MANTENIMIENTO" || s.status === "FUERA_DE_SERVICIO";
                 return (
                   <div
@@ -340,10 +400,17 @@ export function ModalAprobacion({ r, spaces, onClose, onDone }: { r: Row; spaces
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancelar / Volver a revisión
+            {esReasignar ? "Cancelar" : "Cancelar / Volver a revisión"}
           </Button>
-          <Button disabled={!space || conflicto || aforoInsuficiente || horarioInvalido || busy} onClick={confirmar}>
-            {horarioModificado ? "Confirmar aprobación con nuevo horario" : "Confirmar aprobación definitiva"}
+          <Button
+            disabled={!space || conflicto || aforoInsuficiente || horarioInvalido || (esReasignar && !hayCambios) || busy}
+            onClick={confirmar}
+          >
+            {esReasignar
+              ? "Confirmar reasignación"
+              : horarioModificado
+                ? "Confirmar aprobación con nuevo horario"
+                : "Confirmar aprobación definitiva"}
           </Button>
         </DialogFooter>
       </DialogContent>

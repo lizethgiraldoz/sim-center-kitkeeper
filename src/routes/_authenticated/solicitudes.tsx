@@ -33,21 +33,28 @@ function Page() {
   const [rechazo, setRechazo] = useState<Row | null>(null);
   const [motivo, setMotivo] = useState("");
   const [reasig, setReasig] = useState<Row | null>(null);
-  const [espacio, setEspacio] = useState("");
   const [aprobar, setAprobar] = useState<Row | null>(null);
   const run = async (p: PromiseLike<{ error: { message: string } | null }>, ok: string) => {
     const { error } = await p;
-    if (error) toast.error(error.message); else toast.success(ok);
+    if (error) toast.error(error.message);
+    else toast.success(ok);
     q.refetch();
     return !error;
   };
   const rows = (q.data ?? []).filter((r: Row) => filtro === "TODAS" || r.status === filtro);
   return (
     <div>
-      <Titulo t="Gestión de solicitudes" d="Aprobar prácticas internas bloquea salones y recursos; los préstamos externos se gestionan en su módulo exclusivo" />
+      <Titulo
+        t="Gestión de solicitudes"
+        d="Aprobar prácticas internas bloquea salones y recursos; los préstamos externos se gestionan en su módulo exclusivo"
+      />
       <Tabs value={filtro} onValueChange={setFiltro} className="mb-4">
         <TabsList className="flex-wrap h-auto">
-          {["SOLICITADA", "APROBADA", "RECHAZADA", "CANCELADA", "TODAS"].map((s) => <TabsTrigger key={s} value={s}>{s === "TODAS" ? "Todas" : s.charAt(0) + s.slice(1).toLowerCase()}</TabsTrigger>)}
+          {["SOLICITADA", "APROBADA", "RECHAZADA", "CANCELADA", "TODAS"].map((s) => (
+            <TabsTrigger key={s} value={s}>
+              {s === "TODAS" ? "Todas" : s.charAt(0) + s.slice(1).toLowerCase()}
+            </TabsTrigger>
+          ))}
         </TabsList>
       </Tabs>
       <div className="space-y-3">
@@ -56,68 +63,141 @@ function Page() {
           const esExterna = !!r.leaves_faculty;
           const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
           return (
-            <Card key={r.id}><CardContent className="p-4 flex flex-wrap items-center gap-3">
-              <div className="flex-1 min-w-56">
-                <div className="flex flex-wrap items-center gap-2">
-                  <EstadoBadge status={r.status} />
-                  <strong>{r.activities?.name}</strong>
-                  {esExterna && (
-                    <span className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      <Truck className="h-3 w-3" />Préstamo / Salida Externa
-                    </span>
+            <Card key={r.id}>
+              <CardContent className="p-4 flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-56">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <EstadoBadge status={r.status} />
+                    <strong>{r.activities?.name}</strong>
+                    {esExterna && (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <Truck className="h-3 w-3" />Préstamo / Salida Externa
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {esExterna
+                      ? `Destino: ${form?.destination ?? "Salida externa"} · ${form?.departure_at ? fmt(form.departure_at) : fmt(r.starts_at)} → ${form?.return_at ? fmt(form.return_at) : hora(r.ends_at)}`
+                      : `${r.spaces?.name ?? "Espacio por asignar"} · ${fmt(r.starts_at)} – ${hora(r.ends_at)} · ${r.participants} participantes`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}
+                  </p>
+                  {r.notes?.trim() && (
+                    <p className="text-xs mt-1 text-foreground">
+                      <strong>Observaciones:</strong> {r.notes}
+                    </p>
+                  )}
+                  {r.status === "CANCELADA" && r.justificacion_cancelacion && (
+                    <p className="text-xs mt-1 rounded bg-muted px-2 py-1 text-foreground">
+                      <strong>Cancelada por el docente:</strong> {r.justificacion_cancelacion}
+                    </p>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {esExterna
-                    ? `Destino: ${form?.destination ?? "Salida externa"} · ${form?.departure_at ? fmt(form.departure_at) : fmt(r.starts_at)} → ${form?.return_at ? fmt(form.return_at) : hora(r.ends_at)}`
-                    : `${r.spaces?.name ?? "Espacio por asignar"} · ${fmt(r.starts_at)} – ${hora(r.ends_at)} · ${r.participants} participantes`}
-                </p>
-                <p className="text-xs text-muted-foreground">{r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}</p>
-                {r.notes?.trim() && <p className="text-xs mt-1 text-foreground"><strong>Observaciones:</strong> {r.notes}</p>}
-                {r.status === "CANCELADA" && r.justificacion_cancelacion && <p className="text-xs mt-1 rounded bg-muted px-2 py-1 text-foreground"><strong>Cancelada por el docente:</strong> {r.justificacion_cancelacion}</p>}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setVer(r)}>Ver detalle{(noLeidos[r.id] ?? 0) > 0 && <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground" aria-label="Mensajes sin leer">{noLeidos[r.id]}</span>}</Button>
-                {esExterna ? (
-                  <Button size="sm" onClick={() => navigate({ to: "/prestamos-externos", search: { id: r.id } })}>
-                    <Truck className="h-4 w-4 mr-1" />Gestionar préstamo externo
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setVer(r)}>
+                    Ver detalle
+                    {(noLeidos[r.id] ?? 0) > 0 && (
+                      <span
+                        className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground"
+                        aria-label="Mensajes sin leer"
+                      >
+                        {noLeidos[r.id]}
+                      </span>
+                    )}
                   </Button>
-                ) : (
-                  <>
-                    {r.status === "SOLICITADA" && <>
-                      <Button size="sm" onClick={() => setAprobar(r)}>Aprobar</Button>
-                      <Button size="sm" variant="destructive" onClick={() => { setMotivo(""); setRechazo(r); }}>Rechazar</Button>
-                    </>}
-                    {(r.status === "APROBADA" || (r.status === "SOLICITADA" && r.space_id)) && <Button size="sm" variant="outline" onClick={() => { setEspacio(""); setReasig(r); }}>Reasignar espacio</Button>}
-                  </>
-                )}
-              </div>
-            </CardContent></Card>
+                  {esExterna ? (
+                    <Button size="sm" onClick={() => navigate({ to: "/prestamos-externos", search: { id: r.id } })}>
+                      <Truck className="h-4 w-4 mr-1" />Gestionar préstamo externo
+                    </Button>
+                  ) : (
+                    <>
+                      {r.status === "SOLICITADA" && (
+                        <>
+                          <Button size="sm" onClick={() => setAprobar(r)}>
+                            Aprobar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setMotivo("");
+                              setRechazo(r);
+                            }}
+                          >
+                            Rechazar
+                          </Button>
+                        </>
+                      )}
+                      {(r.status === "APROBADA" || (r.status === "SOLICITADA" && r.space_id)) && (
+                        <Button size="sm" variant="outline" onClick={() => setReasig(r)}>
+                          Reasignar espacio o fecha
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
       <Dialog open={!!rechazo} onOpenChange={(o) => !o && setRechazo(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Rechazar solicitud</DialogTitle></DialogHeader>
-          <Textarea placeholder="Motivo de la decisión (se notificará al docente)" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-          <DialogFooter><Button variant="destructive" disabled={!motivo.trim()} onClick={async () => { if (await run(supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }), "Reserva rechazada")) { window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "RECHAZADA" }); void notifyReservationPush({ data: { reservationId: rechazo.id, title: "Reserva rechazada", body: `${rechazo.activities?.name ?? "Tu reserva"} fue rechazada. Motivo: ${motivo.trim().slice(0, 100)}` } }).catch(() => {}); setRechazo(null); } }}>Confirmar rechazo</Button></DialogFooter>
+          <DialogHeader>
+            <DialogTitle>Rechazar solicitud</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Motivo de la decisión (se notificará al docente)"
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+          />
+          <DialogFooter>
+            <Button
+              variant="destructive"
+              disabled={!motivo.trim()}
+              onClick={async () => {
+                if (await run(supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }), "Reserva rechazada")) {
+                  window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "RECHAZADA" });
+                  void notifyReservationPush({
+                    data: {
+                      reservationId: rechazo.id,
+                      title: "Reserva rechazada",
+                      body: `${rechazo.activities?.name ?? "Tu reserva"} fue rechazada. Motivo: ${motivo.trim().slice(0, 100)}`,
+                    },
+                  }).catch(() => {});
+                  setRechazo(null);
+                }
+              }}
+            >
+              Confirmar rechazo
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!reasig} onOpenChange={(o) => !o && setReasig(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Reasignar espacio</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Actual: {reasig?.spaces?.name}. Los equipos e insumos se mantienen.</p>
-          <select className="border rounded-md px-2 h-9 bg-background text-sm w-full" value={espacio} onChange={(e) => setEspacio(e.target.value)}>
-            <option value="">Seleccione un espacio…</option>
-            {cat?.spaces.filter((s: Row) => s.id !== reasig?.space_id).map((s: Row) => {
-              const sinAforo = (reasig?.participants ?? 0) > s.capacity;
-              return <option key={s.id} value={s.id} disabled={sinAforo}>{s.name} · cap. {s.capacity}{sinAforo ? ` · AFORO INSUFICIENTE (Capacidad: ${s.capacity} | Solicitados: ${reasig?.participants})` : ""}</option>;
-            })}
-          </select>
-          <DialogFooter><Button disabled={!espacio} onClick={async () => { if (await run(supabase.rpc("reasignar_espacio", { _id: reasig.id, _new_space_id: espacio }), "Espacio reasignado")) setReasig(null); }}>Aplicar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {aprobar && <ModalAprobacion r={aprobar} spaces={cat?.spaces ?? []} onClose={() => setAprobar(null)} onDone={() => { setAprobar(null); q.refetch(); }} />}
+      {aprobar && (
+        <ModalAprobacion
+          r={aprobar}
+          spaces={cat?.spaces ?? []}
+          onClose={() => setAprobar(null)}
+          onDone={() => {
+            setAprobar(null);
+            q.refetch();
+          }}
+        />
+      )}
+      {reasig && (
+        <ModalAprobacion
+          modo="reasignar"
+          r={reasig}
+          spaces={cat?.spaces ?? []}
+          onClose={() => setReasig(null)}
+          onDone={() => {
+            setReasig(null);
+            q.refetch();
+          }}
+        />
+      )}
       {ver && <DetalleReserva r={ver} open onOpenChange={(o) => !o && setVer(null)} onChanged={() => q.refetch()} />}
     </div>
   );
