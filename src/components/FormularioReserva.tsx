@@ -23,8 +23,150 @@ type PrestamoItem = {
   esOtro?: boolean;
 };
 export const FACULTADES: Record<string, string[]> = {
-  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "Tecnologías"],
+  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "APH", "Posgrados", "Tecnologías"],
   "Facultad de Enfermería": ["Enfermería"],
+};
+const PROGRAMAS_POR_PRACTICA: Record<string, string[]> = {
+  "entorno hospitalario": ["Instrumentación Quirúrgica"],
+  "sistema de quirófanos": ["Instrumentación Quirúrgica"],
+  "practica i": ["Instrumentación Quirúrgica"],
+  "ginecología y obstetricia": ["Instrumentación Quirúrgica"],
+  "otorrinolaringología": ["Instrumentación Quirúrgica"],
+  "videoendoscopia": ["Instrumentación Quirúrgica"],
+  "cirugía de mínimo acceso": ["Instrumentación Quirúrgica"],
+  "neurocirugía": ["Instrumentación Quirúrgica"],
+  "cirugía cardiovascular y trasplantes": ["Instrumentación Quirúrgica"],
+  "asistir al usuario": ["APH"],
+  "accesos y operaciones de emergencia": ["APH"],
+  "atender a las personas con alteración de la salud en fase aph": ["APH"],
+  "admon de medicamentos": ["APH"],
+  "diagnostico individual": ["APH"],
+  "promoción y prevención": ["APH"],
+  "otro": ["Instrumentación Quirúrgica", "APH"],
+  "abp comunicaciones en salud": ["Medicina"],
+  "anatomia": ["Medicina"],
+  "anatomia del sistema endocrino": ["Medicina"],
+  "atencion del parto normal": ["Medicina"],
+  "atencion integral preescolar": ["Medicina"],
+  "biologia de la celula": ["Medicina"],
+  "codigo rojo": ["Medicina"],
+  "comportamiento en quirofano": ["Medicina"],
+  "consulta externa": ["Medicina"],
+  "consulta prenatal": ["Medicina"],
+  "curso introductorio ginecobstetricia": ["Medicina"],
+  "ecoe - quinto semestre": ["Medicina"],
+  "enfermeria - reanimacion neonatal y codigo rojo": ["Medicina", "Enfermería"],
+  "examen final ginecostetricia": ["Medicina"],
+  "examen fisico y fondo de ojo": ["Medicina"],
+  "falla cardiaca": ["Medicina"],
+  "flexible aph": ["Medicina"],
+  "flexible parasitologia humana": ["Medicina"],
+  "insercion de metodos antinconceptivos": ["Medicina"],
+  "inyectologia": ["Medicina"],
+  "ive": ["Medicina"],
+  "lavado de manos quirurgico": ["Medicina"],
+  "lavado de manos, vestida de ropa quirurgica, vestida de mesas": ["Medicina"],
+  "manejo de la via aerea pediatrica": ["Medicina"],
+  "manejo electro bisturí/taller de señales, reconocimiento simuladores y sus funciones": ["Medicina"],
+  "manejo equipos e instrumental/ entorno hospitalario": ["Medicina"],
+  "manejo simuladores": ["Medicina"],
+  "maniobras obstetricas": ["Medicina"],
+  "microcirugia": ["Medicina"],
+  "minuto de oro": ["Medicina"],
+  "neuroanatomia": ["Medicina"],
+  "oxigenoterapia y choque": ["Medicina"],
+  "paciente critico": ["Medicina"],
+  "paciente simulado": ["Medicina"],
+  "paso de sonda vesical y nasogastrica": ["Medicina"],
+  "planeamiento hospitalario de emergencias y desastres": ["Medicina"],
+  "practica de ekg": ["Medicina"],
+  "practica de trauma - primeros auxilios": ["Medicina"],
+  "primeros auxilios - examen final trauma y rcp": ["Medicina"],
+  "primeros auxilios - parcial de rcp": ["Medicina"],
+  "primeros auxilios - parcial de trauma": ["Medicina"],
+  "primeros auxilios - rcp": ["Medicina"],
+  "primeros auxilios - signos vitales": ["Medicina"],
+  "primeros auxilios - translado y transporte": ["Medicina"],
+  "primeros auxilios - vendajes e inmovilizaciones": ["Medicina"],
+  "puncion lumbar": ["Medicina"],
+  "reanimacion basica y avanzada noveno": ["Medicina"],
+  "reconocimiento de instrumental": ["Medicina"],
+  "reduccion de fracturas y luxaciones e inmovilizaciones": ["Medicina"],
+  "repaso quirurgico": ["Medicina"],
+  "reunión administrativa y/o académica": ["Medicina"],
+  "semiología cardiopulmonar": ["Medicina"],
+  "semiología de abdomen": ["Medicina"],
+  "semiologia quinto semestre (c-tr-tv)": ["Medicina"],
+  "shae": ["Medicina"],
+  "simue": ["Medicina"],
+  "simulación paciente crítico y urgencias medicas": ["Medicina"],
+  "soporte vital del paciente pediátrico y adulto": ["Medicina"],
+  "suturas": ["Medicina"],
+  "suturas - aph": ["Medicina"],
+  "tacto rectal y de mamas": ["Medicina"],
+  "tacto rectal y semiologia": ["Medicina"],
+  "taller de bioetica": ["Medicina"],
+  "taller de electrocardiografía 5 semestre": ["Medicina"],
+  "taller de episiorrafía": ["Medicina"],
+  "taller de examen fisico - otorrinolaringología": ["Medicina"],
+  "taller de laparoscopia": ["Medicina"],
+  "taller de medicina legal": ["Medicina"],
+  "taller de miembro superior": ["Medicina"],
+  "taller ef rn y de lev en neonatos": ["Medicina"],
+  "taller semiología osteomuscular": ["Medicina"],
+  "tecnicas quirurgicas": ["Medicina"],
+  "titulacion- via aerea-secuencia int rapida": ["Medicina"],
+  "tubo a torax": ["Medicina"],
+  "urgencias otorrinolaringología": ["Medicina"],
+  "urgencias pediatricas": ["Medicina"],
+  "urología - tacto rectal y sonda vesical": ["Medicina"],
+  "vestida del paciente": ["Medicina"],
+  "vestida microscopio": ["Medicina"],
+  "consulta nutricional materno infantil": ["Medicina"],
+  "primeros auxilios - parto de emergencia": ["Medicina"],
+  "reanimacion pediatrica y acceso intraoseo": ["Medicina"],
+  "via aerea avanzada pediatrica": ["Medicina"],
+  "infeccion y cancer": ["Medicina"],
+  "sindrome compartimental y fractura de pelvis": ["Medicina"],
+  "examen fisico y semiologia tecnología aph": ["Medicina"],
+  "toma de muestra vaginal": ["Medicina"],
+  "procedimientos quirurgicos especializados": ["Medicina"],
+  "procedimientos quirurgicos basicos": ["Medicina"],
+  "neumotorax": ["Medicina"],
+  "ecoe - dermatologia 8 semestre": ["Medicina"],
+  "flexible cirugia iq": ["Medicina"],
+  "radiografía de torax": ["Medicina"],
+  "taller introductorio de ginecobstetricia": ["Medicina"],
+  "casa simulada - salud familiar": ["Medicina"],
+  "consulta externa psiquiatria - 8 semestre": ["Medicina"],
+  "reanimación pediatrica y neonatal - enfermeria": ["Medicina", "Enfermería"],
+  "sedación": ["Medicina"],
+  "flexible primeros auxilios": ["Medicina"],
+  "fundamentos rescate en alturas": ["Medicina"],
+  "simulación atención del paciente intoxicado": ["Medicina"],
+  "monitoreo hemodinamico uci": ["Posgrados"],
+  "artroscopia": ["Posgrados"],
+  "cateterismo guiado por ecografo": ["Posgrados"],
+  "cluva": ["Posgrados"],
+  "cricotiroidotomía": ["Posgrados"],
+  "ecografia": ["Posgrados"],
+  "fibroscopia": ["Posgrados"],
+  "radiología pediatrica": ["Posgrados"],
+  "laboratorio de hueso temporal": ["Posgrados"],
+  "laparoscopia": ["Posgrados"],
+  "manejo básico y avanzado de vía aérea": ["Posgrados"],
+  "micro cirugía": ["Posgrados"],
+  "microcirugia ocular": ["Posgrados"],
+  "oftalmoscopia indirecta": ["Posgrados"],
+  "procedimientos en ginecobstetricia": ["Posgrados"],
+  "punción lumbar residentes": ["Posgrados"],
+  "reanimación pediátrica": ["Posgrados"],
+  "reuniones": ["Posgrados"],
+  "taller de toxina butolínica": ["Posgrados"],
+  "urgencias medicas - urgentología": ["Posgrados"],
+  "toxicología ocupacional": ["Posgrados"],
+  "reanimacion avanzada": ["Posgrados"],
+  "procedimientos en urgencias": ["Posgrados"],
 };
 export const NOTA_30 = "Nota: Para aulas móviles o equipos, el docente responsable debe estar media hora antes de la práctica.";
 const KIND: Record<string, string> = {
@@ -83,9 +225,36 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       .order("name")
       .then(({ data }) => setCatalogoInv(data ?? []));
   }, []);
+  const progNormalizado = h.programa === "Tecnologías" ? "APH" : h.programa;
+  const activitiesFiltradas = useMemo(() => {
+    const lista = activities.filter((a: Row) => {
+      const nombreNorm = String(a.name ?? "").trim().toLowerCase();
+      const progsDb: string[] = Array.isArray(a.programas) ? a.programas : [];
+      const progsFallback: string[] = PROGRAMAS_POR_PRACTICA[nombreNorm] ?? [];
+      const todosProgs = [...new Set([...progsDb, ...progsFallback])];
+      if (progNormalizado === "Enfermería") {
+        return todosProgs.includes("Enfermería") || nombreNorm.includes("enfermer");
+      }
+      if (todosProgs.length > 0) {
+        return todosProgs.includes(progNormalizado);
+      }
+      return false;
+    });
+    const base = lista.length > 0 ? lista : activities;
+    return [...base].sort((a: Row, b: Row) => {
+      const na = String(a.name ?? "");
+      const nb = String(b.name ?? "");
+      if (na.toLowerCase() === "otro") return 1;
+      if (nb.toLowerCase() === "otro") return -1;
+      return na.localeCompare(nb, "es");
+    });
+  }, [activities, progNormalizado]);
   useEffect(() => {
-    setD((p) => ({ ...p, activity: p.activity || activities.find((a) => a.name.startsWith("Módulo Adultos 1"))?.id || activities[0]?.id || "" }));
-  }, [activities]);
+    if (activitiesFiltradas.length === 0) return;
+    if (!activitiesFiltradas.some((a: Row) => a.id === d.activity)) {
+      setD((p) => ({ ...p, activity: activitiesFiltradas[0]?.id ?? "" }));
+    }
+  }, [activitiesFiltradas, d.activity]);
   useEffect(() => {
     if (!d.activity) return;
     supabase.rpc("formulario_plantilla", { _activity_id: d.activity }).then(({ data }) =>
@@ -473,7 +642,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <L t="Módulo académico" className="sm:col-span-2">
                 <select className={sel} value={d.activity} onChange={(e) => setD({ ...d, activity: e.target.value })}>
-                  {activities.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  {activitiesFiltradas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </L>
               <L t="Repetir (reserva recurrente)" className="sm:col-span-2">
