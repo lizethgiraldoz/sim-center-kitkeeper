@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Search, Truck, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { RESERVA_SELECT, fmt, hora, useCatalogos, type Row } from "@/lib/app-data";
 import { notifyReservationPush } from "@/lib/push.functions";
 export const Route = createFileRoute("/_authenticated/solicitudes")({
-  head: () => ({ meta: [{ title: "Gestión de solicitudes · Laboratorio de Simulación UdeA" }] }),
+  head: () => ({ meta: [{ title: "Gestión prácticas en laboratorio · Laboratorio de Simulación UdeA" }] }),
   component: () => <SoloAdmin><Page /></SoloAdmin>,
 });
 function normalizarTexto(s: string): string {
@@ -70,20 +70,19 @@ function coincideDocente(consulta: string, r: Row): boolean {
   );
 }
 function Page() {
-  const navigate = useNavigate();
   const [filtro, setFiltro] = useState("SOLICITADA");
   const [textoDocente, setTextoDocente] = useState("");
   const [busquedaDocente, setBusquedaDocente] = useState("");
   const q = useQuery({
-    queryKey: ["reservas", "todas"],
-    queryFn: async () =>
-      (
-        await supabase
-          .from("reservations")
-          .select(RESERVA_SELECT)
-          .order("starts_at", { ascending: true })
-          .order("created_at", { ascending: true })
-      ).data ?? [],
+    queryKey: ["reservas", "practicas-laboratorio"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("reservations")
+        .select(RESERVA_SELECT)
+        .order("starts_at", { ascending: true })
+        .order("created_at", { ascending: true });
+      return (data ?? []).filter((r: Row) => !r.leaves_faculty);
+    },
   });
   const { data: cat } = useCatalogos();
   const noLeidos = useNoLeidos();
@@ -101,13 +100,12 @@ function Page() {
   };
   const rows = useMemo(() => {
     return [...(q.data ?? [])]
+      .filter((r: Row) => !r.leaves_faculty)
       .filter((r: Row) => filtro === "TODAS" || r.status === filtro)
       .filter((r: Row) => coincideDocente(busquedaDocente, r))
       .sort((a: Row, b: Row) => {
-        const formA = Array.isArray(a.external_borrow_forms) ? a.external_borrow_forms[0] : a.external_borrow_forms;
-        const formB = Array.isArray(b.external_borrow_forms) ? b.external_borrow_forms[0] : b.external_borrow_forms;
-        const fechaA = new Date(formA?.departure_at ?? a.starts_at).getTime();
-        const fechaB = new Date(formB?.departure_at ?? b.starts_at).getTime();
+        const fechaA = new Date(a.starts_at).getTime();
+        const fechaB = new Date(b.starts_at).getTime();
         if (fechaA !== fechaB) return fechaA - fechaB;
         const creadaA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const creadaB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -126,8 +124,8 @@ function Page() {
   return (
     <div>
       <Titulo
-        t="Gestión de solicitudes"
-        d="Aprobar prácticas internas bloquea salones y recursos; los préstamos externos se gestionan en su módulo exclusivo"
+        t="Gestión prácticas en laboratorio"
+        d="Aprobar prácticas internas bloquea salones y recursos del laboratorio; los préstamos externos se gestionan en su apartado exclusivo"
       />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <Tabs value={filtro} onValueChange={setFiltro}>
@@ -177,94 +175,75 @@ function Page() {
       {busquedaDocente && (
         <p className="text-xs text-muted-foreground mb-3">
           {rows.length === 0
-            ? `No se encontraron solicitudes del docente "${busquedaDocente}" en esta pestaña.`
-            : `Mostrando ${rows.length} solicitud(es) para el docente "${busquedaDocente}":`}
+            ? `No se encontraron prácticas del docente "${busquedaDocente}" en esta pestaña.`
+            : `Mostrando ${rows.length} práctica(s) para el docente "${busquedaDocente}":`}
         </p>
       )}
       <div className="space-y-3">
-        {rows.length === 0 && <p className="text-sm text-muted-foreground">No hay solicitudes en este estado.</p>}
-        {rows.map((r: Row) => {
-          const esExterna = !!r.leaves_faculty;
-          const form = Array.isArray(r.external_borrow_forms) ? r.external_borrow_forms[0] : r.external_borrow_forms;
-          return (
-            <Card key={r.id}>
-              <CardContent className="p-4 flex flex-wrap items-center gap-3">
-                <div className="flex-1 min-w-56">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <EstadoBadge status={r.status} />
-                    <strong>{r.activities?.name}</strong>
-                    {esExterna && (
-                      <span className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        <Truck className="h-3 w-3" />Préstamo / Salida Externa
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {esExterna
-                      ? `Destino: ${form?.destination ?? "Salida externa"} · ${form?.departure_at ? fmt(form.departure_at) : fmt(r.starts_at)} → ${form?.return_at ? fmt(form.return_at) : hora(r.ends_at)}`
-                      : `${r.spaces?.name ?? "Espacio por asignar"} · ${fmt(r.starts_at)} – ${hora(r.ends_at)} · ${r.participants} participantes`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}
-                  </p>
-                  {r.notes?.trim() && (
-                    <p className="text-xs mt-1 text-foreground">
-                      <strong>Observaciones:</strong> {r.notes}
-                    </p>
-                  )}
-                  {r.status === "CANCELADA" && r.justificacion_cancelacion && (
-                    <p className="text-xs mt-1 rounded bg-muted px-2 py-1 text-foreground">
-                      <strong>Cancelada por el docente:</strong> {r.justificacion_cancelacion}
-                    </p>
-                  )}
+        {rows.length === 0 && <p className="text-sm text-muted-foreground">No hay solicitudes de prácticas en este estado.</p>}
+        {rows.map((r: Row) => (
+          <Card key={r.id}>
+            <CardContent className="p-4 flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-56">
+                <div className="flex flex-wrap items-center gap-2">
+                  <EstadoBadge status={r.status} />
+                  <strong>{r.activities?.name}</strong>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setVer(r)}>
-                    Ver detalle
-                    {(noLeidos[r.id] ?? 0) > 0 && (
-                      <span
-                        className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground"
-                        aria-label="Mensajes sin leer"
-                      >
-                        {noLeidos[r.id]}
-                      </span>
-                    )}
-                  </Button>
-                  {esExterna ? (
-                    <Button size="sm" onClick={() => navigate({ to: "/prestamos-externos", search: { id: r.id } })}>
-                      <Truck className="h-4 w-4 mr-1" />Gestionar préstamo externo
+                <p className="text-sm text-muted-foreground">
+                  {r.spaces?.name ?? "Espacio por asignar"} · {fmt(r.starts_at)} – {hora(r.ends_at)} · {r.participants} participantes
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}
+                </p>
+                {r.notes?.trim() && (
+                  <p className="text-xs mt-1 text-foreground">
+                    <strong>Observaciones:</strong> {r.notes}
+                  </p>
+                )}
+                {r.status === "CANCELADA" && r.justificacion_cancelacion && (
+                  <p className="text-xs mt-1 rounded bg-muted px-2 py-1 text-foreground">
+                    <strong>Cancelada por el docente:</strong> {r.justificacion_cancelacion}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setVer(r)}>
+                  Ver detalle
+                  {(noLeidos[r.id] ?? 0) > 0 && (
+                    <span
+                      className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground"
+                      aria-label="Mensajes sin leer"
+                    >
+                      {noLeidos[r.id]}
+                    </span>
+                  )}
+                </Button>
+                {r.status === "SOLICITADA" && (
+                  <>
+                    <Button size="sm" onClick={() => setAprobar(r)}>
+                      Aprobar
                     </Button>
-                  ) : (
-                    <>
-                      {r.status === "SOLICITADA" && (
-                        <>
-                          <Button size="sm" onClick={() => setAprobar(r)}>
-                            Aprobar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setMotivo("");
-                              setRechazo(r);
-                            }}
-                          >
-                            Rechazar
-                          </Button>
-                        </>
-                      )}
-                      {(r.status === "APROBADA" || (r.status === "SOLICITADA" && r.space_id)) && (
-                        <Button size="sm" variant="outline" onClick={() => setReasig(r)}>
-                          Reasignar espacio o fecha
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setMotivo("");
+                        setRechazo(r);
+                      }}
+                    >
+                      Rechazar
+                    </Button>
+                  </>
+                )}
+                {(r.status === "APROBADA" || (r.status === "SOLICITADA" && r.space_id)) && (
+                  <Button size="sm" variant="outline" onClick={() => setReasig(r)}>
+                    Reasignar espacio o fecha
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
       <Dialog open={!!rechazo} onOpenChange={(o) => !o && setRechazo(null)}>
         <DialogContent>

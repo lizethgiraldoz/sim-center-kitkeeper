@@ -28,7 +28,7 @@ const DOCENTE = [
 ] as const;
 const ADMIN = [
   { title: "Disponibilidad y bloqueos", url: "/disponibilidad", icon: CalendarRange },
-  { title: "Gestión de solicitudes", url: "/solicitudes", icon: ClipboardCheck },
+  { title: "Gestión prácticas en laboratorio", url: "/solicitudes", icon: ClipboardCheck },
   { title: "Préstamos y salidas externas", url: "/prestamos-externos", icon: Truck },
   { title: "Asistencia y montaje", url: "/asistencia", icon: UserX },
   { title: "Verificación de docentes", url: "/docentes", icon: UserCheck },
