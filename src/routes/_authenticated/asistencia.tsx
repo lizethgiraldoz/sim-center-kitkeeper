@@ -22,7 +22,7 @@ function resumenElementosPrestados(r: Row): string {
     .map((it: Row) => {
       const cant = it.cantidad_aprobada ?? it.quantity ?? 1;
       const nombre = it.resources?.name ?? "Elemento";
-      return ${cant} × ;
+      return `${cant} × ${nombre}`;
     })
     .join(", ");
 }
@@ -73,9 +73,13 @@ function Page() {
               <div className="flex flex-wrap gap-2 items-center">
                 {r.asistencia === "NO_ASISTIO" && <span className="rounded bg-destructive px-2 py-0.5 text-xs font-semibold text-destructive-foreground">Inasistencia del docente</span>}
                 {r.estado_montaje === "FALTA_EQUIPO" && <span className="rounded bg-warning px-2 py-0.5 text-xs font-semibold text-warning-foreground">Falta de equipo</span>}
-                <strong>{r.activities?.name}</strong>
+                <strong>{r.leaves_faculty ? `Préstamo: ${resumenElementosPrestados(r)}` : r.activities?.name}</strong>
               </div>
-              <p className="text-muted-foreground">{fmt(r.starts_at)} · {r.spaces?.name ?? "—"} · {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {r.programa}</p>
+              <p className="text-muted-foreground">
+                {r.leaves_faculty
+                  ? `Responsable: ${r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · ${fmt(r.starts_at)} – ${hora(r.ends_at)} · ${r.programa ?? ""}`
+                  : `${fmt(r.starts_at)} · ${r.spaces?.name ?? "—"} · ${r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · ${r.programa ?? ""}`}
+              </p>
               {r.falta_equipo && <p className="text-xs mt-1"><strong>Equipo faltante:</strong> {r.falta_equipo}</p>}
             </CardContent></Card>
           )))}

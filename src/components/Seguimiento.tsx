@@ -137,9 +137,9 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">Estado del préstamo:</span>
               <span
-                className={inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${estadoPrestamo.badge}`}
               >
-                <span className={h-2.5 w-2.5 rounded-full } aria-hidden />
+                <span className={`h-2.5 w-2.5 rounded-full ${estadoPrestamo.dot}`} aria-hidden />
                 {estadoPrestamo.label}
               </span>
             </div>
@@ -283,12 +283,12 @@ export function Seguimiento({ r, onChanged }: { r: Row; onChanged: () => void })
           <div className="space-y-4 text-sm">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-0.5">
               <p className="font-semibold text-foreground">
-                {r.leaves_faculty ? "Préstamo / Salida externa" : (r.activities?.name ?? "Prctica")}
+                {r.leaves_faculty ? "Préstamo / Salida externa" : (r.activities?.name ?? "Práctica")}
               </p>
               <p className="text-muted-foreground">
                 {r.leaves_faculty
-                  ? Préstamo:  – 
-                  : ${r.spaces?.name ?? "Sin espacio"} ·  – }
+                  ? `Préstamo: ${fmt(r.starts_at)} – ${hora(r.ends_at)}`
+                  : `${r.spaces?.name ?? "Sin espacio"} · ${fmt(r.starts_at)} – ${hora(r.ends_at)}`}
               </p>
               <p className="text-muted-foreground">
                 {r.leaves_faculty ? "Responsable" : "Docente"}: {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"}
