@@ -6,6 +6,23 @@ import { cn } from "@/lib/utils";
 const HORAS = Array.from({ length: 12 }, (_, i) => i + 7); // 07..18 -> 12 posiciones
 const MINUTOS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 const p2 = (n: number) => String(n).padStart(2, "0");
+function parseHora24(value: string): { hh: number; mm: number } {
+  if (!value) return { hh: 8, mm: 0 };
+  const s = value.trim().toLowerCase();
+  const isPm = /p\.?\s*m\.?/.test(s);
+  const isAm = /a\.?\s*m\.?/.test(s);
+  const match = s.match(/(\d{1,2})\s*:\s*(\d{1,2})/);
+  if (!match) return { hh: 8, mm: 0 };
+  let hh = Number(match[1]);
+  let mm = Number(match[2]);
+  if (Number.isNaN(hh)) hh = 8;
+  if (Number.isNaN(mm)) mm = 0;
+  if (isPm && hh < 12) hh += 12;
+  else if (isAm && hh === 12) hh = 0;
+  hh = Math.max(0, Math.min(23, hh));
+  mm = Math.max(0, Math.min(59, mm));
+  return { hh, mm };
+}
 /** Selector de hora tipo reloj circular. Rango operativo 07:00–19:00. */
 export function RelojHora({
   value,
@@ -20,7 +37,8 @@ export function RelojHora({
 }) {
   const [open, setOpen] = useState(false);
   const [modo, setModo] = useState<"h" | "m">("h");
-  const [hh = 8, mm = 0] = value.split(":").map(Number);
+  const { hh, mm } = parseHora24(value);
+  const displayValue = `${p2(hh)}:${p2(mm)}`;
   const horasDial = modo === "h" ? HORAS : MINUTOS;
   const set = (v: number) => {
     if (modo === "h") {
@@ -49,12 +67,12 @@ export function RelojHora({
           variant="outline"
           className={cn(
             "w-full justify-start font-normal gap-2",
-            value > max && "border-destructive text-destructive",
+            displayValue > max && "border-destructive text-destructive",
             className
           )}
         >
           <Clock className="h-4 w-4 shrink-0" />
-          <span>{value}</span>
+          <span>{displayValue}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3 pointer-events-auto" align="start">

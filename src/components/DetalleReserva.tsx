@@ -204,8 +204,19 @@ function AutorizacionSalida({ r, form, onChanged }: { r: Row; form: Row; onChang
 function ReprogramarModal({ r, onClose, onDone }: { r: Row; onClose: () => void; onDone: () => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const [dia, setDia] = useState<Date>(new Date(r.starts_at));
-  const [ini, setIni] = useState(() => hora(r.starts_at));
-  const [fin, setFin] = useState(() => hora(r.ends_at));
+  const toHora24 = (isoStr: string) => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/Bogota",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(new Date(isoStr));
+    const h = parts.find((p) => p.type === "hour")?.value ?? "08";
+    const m = parts.find((p) => p.type === "minute")?.value ?? "00";
+    return `${h === "24" ? "00" : h}:${m}`;
+  };
+  const [ini, setIni] = useState(() => toHora24(r.starts_at));
+  const [fin, setFin] = useState(() => toHora24(r.ends_at));
   const [busy, setBusy] = useState(false);
   const ymd = format(dia, "yyyy-MM-dd");
   const iso = (t: string) => new Date(`${ymd}T${t}:00-05:00`).toISOString();
