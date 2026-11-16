@@ -345,7 +345,7 @@ export function ModalAprobacion({
                         <div
                           key={x.id}
                           title={`${x.activities?.name} ${hora(x.starts_at)}–${hora(x.ends_at)}`}
-                          className="absolute inset-y-0 rounded-md bg-chart-3 text-[10px] text-primary-foreground px-1 flex items-center truncate"
+                        className="absolute inset-y-0 rounded-md bg-rose-600 text-[10px] text-white px-1 flex items-center truncate"
                           style={{ left: pct(horas(x.starts_at)), width: `calc(${pct(horas(x.ends_at))} - ${pct(horas(x.starts_at))})` }}
                         >
                           {x.activities?.name}
@@ -373,7 +373,7 @@ export function ModalAprobacion({
                 );
               })}
               <p className="text-[11px] text-muted-foreground">
-                Verde: libre · Azul: reservado · <strong>Recuadro punteado:</strong> arrástralo horizontalmente para mover la hora o haz clic en otro salón libre.
+                Verde: libre · Rojo: reservado · <strong>Recuadro punteado:</strong> arrástralo horizontalmente para mover la hora o haz clic en otro salón libre.
               </p>
             </div>
             {conflicto && (
