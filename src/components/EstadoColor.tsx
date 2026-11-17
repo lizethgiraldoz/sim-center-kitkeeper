@@ -1,13 +1,10 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
 /** Convención de colores: verde libre/disponible, rojo reservado/ocupado. */
 export const COLOR_ESTADO = {
   DISPONIBLE: { cls: "bg-emerald-500", label: "Libre / Disponible" },
   RESERVADO: { cls: "bg-rose-600", label: "Reservado / Ocupado" },
 } as const;
-
 export type EstadoColorKey = keyof typeof COLOR_ESTADO;
-
 export function PuntoEstado({ status, extra }: { status: EstadoColorKey; extra?: string }) {
   const c = COLOR_ESTADO[status] ?? COLOR_ESTADO.DISPONIBLE;
   return (
@@ -28,7 +25,6 @@ export function PuntoEstado({ status, extra }: { status: EstadoColorKey; extra?:
     </TooltipProvider>
   );
 }
-
 export function LeyendaColores() {
   return (
     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -43,8 +39,4 @@ export function LeyendaColores() {
       })}
     </div>
   );
-}
-
-export function LeyendaColores() {
-  return <div className="flex gap-2 items-center">{(Object.keys(COLOR_ESTADO) as EstadoColorKey[]).map((k) => <PuntoEstado key={k} status={k} />)}</div>;
 }
