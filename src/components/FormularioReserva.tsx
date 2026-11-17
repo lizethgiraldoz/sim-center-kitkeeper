@@ -496,7 +496,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               {E("destination", "Lugar de destino *", "text", "Ej. Parque de la Vida")}
               {E("transport_vehicle", "Vehículo / transporte *", "text", "Ej. Vehículo institucional")}
               <div className="sm:col-span-2 md:col-span-3">
-                {E("purpose", "Destino u objeto de la salida (motivo)", "text", "Ej. Taller extramural de reanimación")}
+                {E("purpose", "Motivo del préstamo", "text", "Ej. Taller extramural de reanimación")}
               </div>
             </div>
             <h3 className="text-sm font-semibold border-b pb-1 text-primary">Fechas y horarios de salida y devolución</h3>
