@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarCheck2, ChevronDown, ChevronRight, DoorOpen, Percent, Users } from "lucide-react";
+import { CalendarCheck2, ChevronDown, ChevronRight, DoorOpen, Maximize2, Percent, Users, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +74,7 @@ function Page() {
     AULAS_MOVILES: true,
   });
   const [detalle, setDetalle] = useState<{ reserva: Row; space: Row } | null>(null);
+  const [expandido, setExpandido] = useState(false);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -140,7 +142,6 @@ function Page() {
         return minAhora >= ini && minAhora < fin;
       });
       if (!ocupadoAhora) disponiblesAhora += 1;
-      // Calcular minutos únicos ocupados dentro de 06:00–19:00
       const intervalos = rs
         .map((r: Row) => [
           Math.max(minDiaIni, minutosBogota(r.starts_at)),
@@ -205,6 +206,19 @@ function Page() {
       ro.disconnect();
     };
   }, [espaciosFiltrados, zonasAbiertas]);
+  useEffect(() => {
+    if (!expandido) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandido(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [expandido]);
   const toggleZona = (zona: string) => {
     setZonasAbiertas((prev) => ({ ...prev, [zona]: !(prev[zona] ?? true) }));
   };
@@ -212,6 +226,10 @@ function Page() {
     const clamped = Math.max(H0 * 60, Math.min(H1 * 60, min));
     return ((clamped - H0 * 60) / (TOTAL_HORAS * 60)) * 100;
   };
+  const fechaFormateada = useMemo(() => {
+    const [y, m, d] = dia.split("-");
+    return y && m && d ? `${d}/${m}/${y}` : dia;
+  }, [dia]);
   return (
     <TooltipProvider delayDuration={120}>
       <div className="space-y-4">
@@ -258,7 +276,7 @@ function Page() {
             </CardContent>
           </Card>
         </div>
-        {/* Barra de filtros en una sola fila */}
+        {/* Barra de filtros y botón para expandir */}
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
             <div className="flex flex-wrap items-center gap-2.5">
@@ -295,7 +313,19 @@ function Page() {
                 />
               </div>
             </div>
-            <LeyendaColores />
+            <div className="flex flex-wrap items-center gap-3">
+              <LeyendaColores />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setExpandido(true)}
+                className="h-9 gap-1.5 text-xs"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Expandir tablero
+              </Button>
+            </div>
           </CardContent>
         </Card>
         {/* Línea de Tiempo de Recursos (06:00 a 19:00) */}
@@ -467,6 +497,172 @@ function Page() {
             </div>
           </CardContent>
         </Card>
+        {/* Vista panorámica expandida (solo de guía visual) */}
+        {expandido && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Vista panorámica de disponibilidad"
+            className="fixed inset-0 z-50 flex flex-col bg-background"
+          >
+            {/* Encabezado de la guía panorámica */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-4 py-2.5 shadow-xs">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="text-sm font-bold text-foreground">
+                  Disponibilidad del día – {fechaFormateada}
+                </h2>
+                <Badge variant="secondary" className="text-[11px] font-normal">
+                  Vista panorámica de guía
+                </Badge>
+                <span className="hidden text-xs text-muted-foreground md:inline">
+                  {kpis.disponiblesAhora}/{kpis.totalEspacios} disponibles ahora · {kpis.practicasHoy} prácticas · Ocupación {kpis.porcentajeOcupacion}%
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <LeyendaColores />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setExpandido(false)}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cerrar vista
+                </Button>
+              </div>
+            </div>
+            {/* Tablero panorámico a pantalla completa */}
+            <div className="flex-1 overflow-auto bg-muted/20 p-2 sm:p-3">
+              <div className="min-w-[1060px] overflow-hidden rounded-lg border bg-card shadow-xs">
+                {/* Cabecera horaria completa 06:00 - 19:00 */}
+                <div className="sticky top-0 z-30 grid grid-cols-[230px_1fr] border-b bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  <div className="sticky left-0 z-40 flex items-center justify-between border-r bg-muted px-2.5 py-2 text-[11px] font-semibold text-foreground">
+                    <span>Espacio / Subdivisión</span>
+                    <span className="font-normal text-muted-foreground">Aforo</span>
+                  </div>
+                  <div
+                    className="relative grid"
+                    style={{ gridTemplateColumns: "repeat(13, minmax(64px, 1fr))" }}
+                  >
+                    {HORAS.map((h) => (
+                      <div
+                        key={h}
+                        className="border-l px-1.5 py-2 text-[11px] font-medium text-muted-foreground first:border-l-0"
+                      >
+                        {String(h).padStart(2, "0")}:00
+                      </div>
+                    ))}
+                    <span className="pointer-events-none absolute right-1.5 top-2 text-[11px] font-medium text-muted-foreground">
+                      19:00
+                    </span>
+                  </div>
+                </div>
+                {/* Todas las zonas y espacios en formato compacto */}
+                {ZONAS.map(([zonaKey, zonaLabel]) => {
+                  const espaciosZona = espaciosFiltrados.filter(
+                    (s: Row) => (s.zona ?? "PISO_2") === zonaKey
+                  );
+                  if (espaciosZona.length === 0) return null;
+                  return (
+                    <div key={zonaKey} className="border-b last:border-b-0">
+                      <div className="bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                        <span className="sticky left-2.5 inline-flex items-center gap-1.5">
+                          {zonaLabel}
+                          <span className="font-normal text-muted-foreground">
+                            ({espaciosZona.length})
+                          </span>
+                        </span>
+                      </div>
+                      {espaciosZona.map((s: Row) => {
+                        const rs = reservasPorEspacio.get(s.id) ?? [];
+                        const carriles = asignarCarriles(rs);
+                        const lanesCount = carriles[0]?.lanes ?? 1;
+                        const rowHeight = Math.max(30, lanesCount * 24 + 6);
+                        return (
+                          <div
+                            key={s.id}
+                            className="grid grid-cols-[230px_1fr] border-t border-border/50"
+                          >
+                            <div className="sticky left-0 z-20 flex items-center justify-between gap-1.5 border-r bg-card px-2.5 py-1">
+                              <span className="truncate text-[11px] font-medium text-foreground" title={s.name}>
+                                {s.name}
+                              </span>
+                              <span className="shrink-0 rounded border px-1.5 py-0.2 text-[10px] text-muted-foreground">
+                                {s.capacity ?? 0}
+                              </span>
+                            </div>
+                            <div
+                              className="relative bg-emerald-50/55"
+                              style={{ height: `${rowHeight}px` }}
+                            >
+                              <div
+                                className="pointer-events-none absolute inset-0 grid"
+                                style={{ gridTemplateColumns: "repeat(13, minmax(64px, 1fr))" }}
+                              >
+                                {HORAS.map((h) => (
+                                  <div key={h} className="border-l border-emerald-950/5 first:border-l-0" />
+                                ))}
+                              </div>
+                              {carriles.map(({ r, lane, lanes }) => {
+                                const iniMin = minutosBogota(r.starts_at);
+                                const finMin = minutosBogota(r.ends_at);
+                                if (finMin <= H0 * 60 || iniMin >= H1 * 60) return null;
+                                const leftPct = pctDesdeMinutos(iniMin);
+                                const rightPct = pctDesdeMinutos(finMin);
+                                const widthPct = Math.max(1.5, rightPct - leftPct);
+                                const modulo = r.activities?.name ?? "Práctica";
+                                const docente =
+                                  r.docente_responsable_nombre ?? r.solicitante_nombre ?? "Sin docente";
+                                const topPct = (lane / lanes) * 100;
+                                const heightPct = 100 / lanes;
+                                return (
+                                  <Tooltip key={r.id}>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        style={{
+                                          left: `calc(${leftPct}% + 2px)`,
+                                          width: `calc(${widthPct}% - 4px)`,
+                                          top: `calc(${topPct}% + 2px)`,
+                                          height: `calc(${heightPct}% - 4px)`,
+                                        }}
+                                        className="absolute z-10 flex cursor-default items-center rounded bg-rose-600 px-2 text-[11px] font-medium text-white shadow-2xs truncate"
+                                      >
+                                        <span className="truncate">
+                                          {modulo}
+                                          <span className="ml-1.5 font-normal opacity-90">
+                                            ({hora(r.starts_at)}–{hora(r.ends_at)} · {docente})
+                                          </span>
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs space-y-1 text-xs">
+                                      <p className="font-semibold">{modulo}</p>
+                                      <p>
+                                        <span className="opacity-75">Docente:</span> {docente}
+                                      </p>
+                                      <p>
+                                        <span className="opacity-75">Programa:</span> {r.programa ?? "—"}{" "}
+                                        {r.semestre ? `· Semestre ${r.semestre}` : ""}
+                                      </p>
+                                      <p>
+                                        <span className="opacity-75">Horario:</span> {hora(r.starts_at)} –{" "}
+                                        {hora(r.ends_at)} · {r.participants ?? 0} est.
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Modal de detalle completo al hacer clic sobre un bloque rojo */}
         <Dialog open={!!detalle} onOpenChange={(o) => !o && setDetalle(null)}>
           <DialogContent className="max-w-md">
