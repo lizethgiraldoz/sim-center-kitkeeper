@@ -121,19 +121,28 @@ function Page() {
   const q = useQuery({
     queryKey: ["inventario"],
     queryFn: async () => {
-      const now = new Date().toISOString();
+      const nowMs = Date.now();
       const [r, k, a] = await Promise.all([
         supabase.from("resources").select("*, resource_categories(name, kind)").order("name"),
         supabase.from("quirofano_instrumental").select("*"),
         supabase
           .from("reservation_resources")
-          .select("resource_id, quantity, cantidad_aprobada, reservations!inner(status, ends_at)")
-          .in("reservations.status", ["APROBADA", "EN_CURSO"])
-          .gte("reservations.ends_at", now),
+          .select("resource_id, quantity, cantidad_aprobada, reservations!inner(status, ends_at, leaves_faculty, salida_estado)")
+          .in("reservations.status", ["APROBADA", "EN_CURSO"]),
       ]);
       const reservados: Record<string, number> = {};
       (a.data ?? []).forEach((x: Row) => {
-        reservados[x.resource_id] = (reservados[x.resource_id] ?? 0) + (x.cantidad_aprobada ?? x.quantity);
+        const res = Array.isArray(x.reservations) ? x.reservations[0] : x.reservations;
+        if (!res) return;
+        const esPrestamoExterno = Boolean(res.leaves_faculty);
+        const sigueOcupado = esPrestamoExterno
+          ? res.salida_estado !== "RETORNADO"
+          : new Date(res.ends_at).getTime() >= nowMs;
+        if (!sigueOcupado) return;
+        const cant = Number(x.cantidad_aprobada ?? x.quantity ?? 0);
+        if (cant > 0) {
+          reservados[x.resource_id] = (reservados[x.resource_id] ?? 0) + cant;
+        }
       });
       return { recursos: r.data ?? [], kits: k.data ?? [], reservados };
     },
