@@ -21,9 +21,9 @@ export const Route = createFileRoute("/_authenticated/disponibilidad")({
   ),
 });
 const H0 = 6; // 06:00
-const H1 = 19; // 19:00
-const TOTAL_HORAS = H1 - H0; // 13 horas
-const HORAS = Array.from({ length: TOTAL_HORAS }, (_, i) => H0 + i); // 06:00 .. 18:00 (cierra 19:00)
+const H1 = 20; // Límite derecho tras la columna 19:00
+const TOTAL_COLUMNAS = H1 - H0; // 14 columnas: 06:00 .. 19:00
+const HORAS = Array.from({ length: TOTAL_COLUMNAS }, (_, i) => H0 + i);
 const ZONAS: [string, string][] = [
   ["PISO_1", "Piso 1"],
   ["PISO_2", "Piso 2"],
@@ -127,13 +127,13 @@ function Page() {
     const reservasVisibles = (q.data?.res ?? []).filter((r: Row) => r.space_id && idsVisibles.has(r.space_id));
     const ahora = new Date();
     const esHoy = dia === hoyBogota();
+    const minDiaIni = H0 * 60;
+    const minDiaFin = 19 * 60; // Jornada laboral 06:00 a 19:00 (13 h)
     const minAhora = esHoy
       ? minutosBogota(ahora.toISOString())
-      : Math.min(H1 * 60 - 1, Math.max(H0 * 60, minutosBogota(ahora.toISOString())));
+      : Math.min(minDiaFin - 1, Math.max(minDiaIni, minutosBogota(ahora.toISOString())));
     let disponiblesAhora = 0;
     let minutosOcupadosTotales = 0;
-    const minDiaIni = H0 * 60;
-    const minDiaFin = H1 * 60;
     for (const s of spaces) {
       const rs = reservasPorEspacio.get(s.id) ?? [];
       const ocupadoAhora = rs.some((r: Row) => {
@@ -162,7 +162,7 @@ function Page() {
       }
       if (curFin > curIni) minutosOcupadosTotales += curFin - curIni;
     }
-    const capacidadMinutosDia = spaces.length * TOTAL_HORAS * 60;
+    const capacidadMinutosDia = spaces.length * (minDiaFin - minDiaIni);
     const porcentajeOcupacion =
       capacidadMinutosDia > 0 ? Math.round((minutosOcupadosTotales / capacidadMinutosDia) * 100) : 0;
     return {
@@ -224,7 +224,7 @@ function Page() {
   };
   const pctDesdeMinutos = (min: number) => {
     const clamped = Math.max(H0 * 60, Math.min(H1 * 60, min));
-    return ((clamped - H0 * 60) / (TOTAL_HORAS * 60)) * 100;
+    return ((clamped - H0 * 60) / (TOTAL_COLUMNAS * 60)) * 100;
   };
   const fechaFormateada = useMemo(() => {
     const [y, m, d] = dia.split("-");
@@ -328,7 +328,7 @@ function Page() {
             </div>
           </CardContent>
         </Card>
-        {/* Línea de Tiempo de Recursos (06:00 a 19:00) */}
+        {/* Línea de Tiempo de Recursos (14 recuadros separados: 06:00 a 19:00) */}
         <Card className="overflow-hidden">
           <div className="border-b bg-muted/30 pt-1 pb-0.5">
             <div
@@ -343,7 +343,7 @@ function Page() {
             ref={tableContainerRef}
             className="p-0 max-h-[calc(100vh-17rem)] min-h-[360px] overflow-auto"
           >
-            <div ref={timelineInnerRef} className="min-w-[1352px]">
+            <div ref={timelineInnerRef} className="min-w-[1380px]">
               {/* Cabecera de horas fija arriba */}
               <div className="sticky top-0 z-30 grid grid-cols-[260px_1fr] border-b bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
                 <div className="sticky left-0 z-40 flex items-center justify-between border-r bg-muted px-3 py-2.5 text-xs font-semibold text-foreground shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
@@ -351,20 +351,17 @@ function Page() {
                   <span className="text-[11px] font-normal text-muted-foreground">Aforo</span>
                 </div>
                 <div
-                  className="relative grid"
-                  style={{ gridTemplateColumns: "repeat(13, minmax(84px, 1fr))" }}
+                  className="grid"
+                  style={{ gridTemplateColumns: `repeat(${TOTAL_COLUMNAS}, minmax(80px, 1fr))` }}
                 >
                   {HORAS.map((h) => (
                     <div
                       key={h}
-                      className="border-l px-2 py-2.5 text-[11px] font-medium text-muted-foreground first:border-l-0"
+                      className="border-l px-2 py-2.5 text-center text-[11px] font-medium text-muted-foreground first:border-l-0"
                     >
                       {String(h).padStart(2, "0")}:00
                     </div>
                   ))}
-                  <span className="pointer-events-none absolute right-2 top-2.5 text-[11px] font-medium text-muted-foreground">
-                    19:00
-                  </span>
                 </div>
               </div>
               {/* Grupos por zona en acordeones colapsables */}
@@ -421,7 +418,7 @@ function Page() {
                                 Cap: {s.capacity ?? 0}
                               </Badge>
                             </div>
-                            {/* Eje Horizontal desplazable (06:00 a 19:00) */}
+                            {/* Eje Horizontal desplazable (06:00 a 19:00 en recuadros individuales) */}
                             <div
                               className="relative bg-emerald-50/50"
                               style={{ height: `${rowHeight}px` }}
@@ -429,10 +426,10 @@ function Page() {
                               {/* Rejilla horaria de fondo */}
                               <div
                                 className="pointer-events-none absolute inset-0 grid"
-                                style={{ gridTemplateColumns: "repeat(13, minmax(84px, 1fr))" }}
+                                style={{ gridTemplateColumns: `repeat(${TOTAL_COLUMNAS}, minmax(80px, 1fr))` }}
                               >
                                 {HORAS.map((h) => (
-                                  <div key={h} className="border-l border-emerald-950/5 first:border-l-0" />
+                                  <div key={h} className="border-l border-emerald-950/10 first:border-l-0" />
                                 ))}
                               </div>
                               {/* Bloques / píldoras rojas de reservas activas */}
@@ -533,28 +530,25 @@ function Page() {
             </div>
             {/* Tablero panorámico a pantalla completa */}
             <div className="flex-1 overflow-auto bg-muted/20 p-2 sm:p-3">
-              <div className="min-w-[1060px] overflow-hidden rounded-lg border bg-card shadow-xs">
-                {/* Cabecera horaria completa 06:00 - 19:00 */}
+              <div className="min-w-[1120px] overflow-hidden rounded-lg border bg-card shadow-xs">
+                {/* Cabecera horaria completa 06:00 - 19:00 en 14 recuadros separados */}
                 <div className="sticky top-0 z-30 grid grid-cols-[230px_1fr] border-b bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
                   <div className="sticky left-0 z-40 flex items-center justify-between border-r bg-muted px-2.5 py-2 text-[11px] font-semibold text-foreground">
                     <span>Espacio / Subdivisión</span>
                     <span className="font-normal text-muted-foreground">Aforo</span>
                   </div>
                   <div
-                    className="relative grid"
-                    style={{ gridTemplateColumns: "repeat(13, minmax(64px, 1fr))" }}
+                    className="grid"
+                    style={{ gridTemplateColumns: `repeat(${TOTAL_COLUMNAS}, minmax(62px, 1fr))` }}
                   >
                     {HORAS.map((h) => (
                       <div
                         key={h}
-                        className="border-l px-1.5 py-2 text-[11px] font-medium text-muted-foreground first:border-l-0"
+                        className="border-l px-1.5 py-2 text-center text-[11px] font-medium text-muted-foreground first:border-l-0"
                       >
                         {String(h).padStart(2, "0")}:00
                       </div>
                     ))}
-                    <span className="pointer-events-none absolute right-1.5 top-2 text-[11px] font-medium text-muted-foreground">
-                      19:00
-                    </span>
                   </div>
                 </div>
                 {/* Todas las zonas y espacios en formato compacto */}
@@ -597,10 +591,10 @@ function Page() {
                             >
                               <div
                                 className="pointer-events-none absolute inset-0 grid"
-                                style={{ gridTemplateColumns: "repeat(13, minmax(64px, 1fr))" }}
+                                style={{ gridTemplateColumns: `repeat(${TOTAL_COLUMNAS}, minmax(62px, 1fr))` }}
                               >
                                 {HORAS.map((h) => (
-                                  <div key={h} className="border-l border-emerald-950/5 first:border-l-0" />
+                                  <div key={h} className="border-l border-emerald-950/10 first:border-l-0" />
                                 ))}
                               </div>
                               {carriles.map(({ r, lane, lanes }) => {
