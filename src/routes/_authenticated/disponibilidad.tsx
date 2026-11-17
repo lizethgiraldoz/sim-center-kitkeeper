@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarCheck2, ChevronDown, ChevronRight, DoorOpen, Percent, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { LeyendaColores } from "@/components/EstadoColor";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import { hora, type Row } from "@/lib/app-data";
-
 export const Route = createFileRoute("/_authenticated/disponibilidad")({
   head: () => ({ meta: [{ title: "Disponibilidad · Laboratorio de Simulación UdeA" }] }),
   component: () => (
@@ -20,12 +19,10 @@ export const Route = createFileRoute("/_authenticated/disponibilidad")({
     </SoloAdmin>
   ),
 });
-
 const H0 = 6; // 06:00
 const H1 = 19; // 19:00
 const TOTAL_HORAS = H1 - H0; // 13 horas
 const HORAS = Array.from({ length: TOTAL_HORAS }, (_, i) => H0 + i); // 06:00 .. 18:00 (cierra 19:00)
-
 const ZONAS: [string, string][] = [
   ["PISO_1", "Piso 1"],
   ["PISO_2", "Piso 2"],
@@ -33,11 +30,9 @@ const ZONAS: [string, string][] = [
   ["CASA_SIMULADA", "Casa Simulada"],
   ["AULAS_MOVILES", "Aulas móviles"],
 ];
-
 function hoyBogota(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 }
-
 function minutosBogota(iso: string): number {
   const [h = 0, m = 0] = new Date(iso)
     .toLocaleTimeString("en-GB", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" })
@@ -45,14 +40,12 @@ function minutosBogota(iso: string): number {
     .map(Number);
   return h * 60 + m;
 }
-
 function asignarCarriles(reservas: Row[]): Array<{ r: Row; lane: number; lanes: number }> {
   const ordenadas = [...reservas].sort(
     (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
   );
   const finPorCarril: number[] = [];
   const asignadas: Array<{ r: Row; lane: number }> = [];
-
   for (const r of ordenadas) {
     const ini = minutosBogota(r.starts_at);
     const fin = minutosBogota(r.ends_at);
@@ -65,11 +58,9 @@ function asignarCarriles(reservas: Row[]): Array<{ r: Row; lane: number; lanes: 
     }
     asignadas.push({ r, lane });
   }
-
   const totalLanes = Math.max(1, finPorCarril.length);
   return asignadas.map((item) => ({ ...item, lanes: totalLanes }));
 }
-
 function Page() {
   const [dia, setDia] = useState<string>(hoyBogota);
   const [zonaFiltro, setZonaFiltro] = useState<string>("TODAS");
@@ -82,10 +73,12 @@ function Page() {
     AULAS_MOVILES: true,
   });
   const [detalle, setDetalle] = useState<{ reserva: Row; space: Row } | null>(null);
-
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const topInnerRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const timelineInnerRef = useRef<HTMLDivElement>(null);
   const desde = new Date(`${dia}T00:00:00-05:00`).toISOString();
   const hasta = new Date(`${dia}T23:59:59-05:00`).toISOString();
-
   const q = useQuery({
     queryKey: ["disponibilidad", dia],
     queryFn: async () => {
@@ -106,9 +99,7 @@ function Page() {
       };
     },
   });
-
   const aforoMin = Math.max(0, Number.parseInt(aforoMinStr, 10) || 0);
-
   const espaciosFiltrados = useMemo(() => {
     const base = q.data?.spaces ?? [];
     return base.filter((s: Row) => {
@@ -118,7 +109,6 @@ function Page() {
       return true;
     });
   }, [q.data?.spaces, zonaFiltro, aforoMin]);
-
   const reservasPorEspacio = useMemo(() => {
     const map = new Map<string, Row[]>();
     for (const r of q.data?.res ?? []) {
@@ -129,23 +119,19 @@ function Page() {
     }
     return map;
   }, [q.data?.res]);
-
   const kpis = useMemo(() => {
     const spaces = espaciosFiltrados;
     const idsVisibles = new Set(spaces.map((s: Row) => s.id));
     const reservasVisibles = (q.data?.res ?? []).filter((r: Row) => r.space_id && idsVisibles.has(r.space_id));
-
     const ahora = new Date();
     const esHoy = dia === hoyBogota();
     const minAhora = esHoy
       ? minutosBogota(ahora.toISOString())
       : Math.min(H1 * 60 - 1, Math.max(H0 * 60, minutosBogota(ahora.toISOString())));
-
     let disponiblesAhora = 0;
     let minutosOcupadosTotales = 0;
     const minDiaIni = H0 * 60;
     const minDiaFin = H1 * 60;
-
     for (const s of spaces) {
       const rs = reservasPorEspacio.get(s.id) ?? [];
       const ocupadoAhora = rs.some((r: Row) => {
@@ -154,7 +140,6 @@ function Page() {
         return minAhora >= ini && minAhora < fin;
       });
       if (!ocupadoAhora) disponiblesAhora += 1;
-
       // Calcular minutos únicos ocupados dentro de 06:00–19:00
       const intervalos = rs
         .map((r: Row) => [
@@ -163,7 +148,6 @@ function Page() {
         ])
         .filter(([a, b]) => b > a)
         .sort((a, b) => a[0] - b[0]);
-
       let curIni = -1;
       let curFin = -1;
       for (const [a, b] of intervalos) {
@@ -177,11 +161,9 @@ function Page() {
       }
       if (curFin > curIni) minutosOcupadosTotales += curFin - curIni;
     }
-
     const capacidadMinutosDia = spaces.length * TOTAL_HORAS * 60;
     const porcentajeOcupacion =
       capacidadMinutosDia > 0 ? Math.round((minutosOcupadosTotales / capacidadMinutosDia) * 100) : 0;
-
     return {
       disponiblesAhora,
       totalEspacios: spaces.length,
@@ -189,16 +171,47 @@ function Page() {
       porcentajeOcupacion,
     };
   }, [espaciosFiltrados, q.data?.res, reservasPorEspacio, dia]);
-
+  useEffect(() => {
+    const topEl = topScrollRef.current;
+    const topInner = topInnerRef.current;
+    const container = tableContainerRef.current;
+    const innerEl = timelineInnerRef.current;
+    if (!topEl || !topInner || !container) return;
+    const updateWidth = () => {
+      const scrollW = innerEl ? innerEl.scrollWidth : container.scrollWidth;
+      const clientW = container.clientWidth;
+      topInner.style.width = `${scrollW}px`;
+      topEl.style.display = scrollW > clientW + 1 ? "block" : "none";
+    };
+    const onTopScroll = () => {
+      if (Math.abs(container.scrollLeft - topEl.scrollLeft) > 1) {
+        container.scrollLeft = topEl.scrollLeft;
+      }
+    };
+    const onBottomScroll = () => {
+      if (Math.abs(topEl.scrollLeft - container.scrollLeft) > 1) {
+        topEl.scrollLeft = container.scrollLeft;
+      }
+    };
+    updateWidth();
+    topEl.addEventListener("scroll", onTopScroll, { passive: true });
+    container.addEventListener("scroll", onBottomScroll, { passive: true });
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(container);
+    if (innerEl) ro.observe(innerEl);
+    return () => {
+      topEl.removeEventListener("scroll", onTopScroll);
+      container.removeEventListener("scroll", onBottomScroll);
+      ro.disconnect();
+    };
+  }, [espaciosFiltrados, zonasAbiertas]);
   const toggleZona = (zona: string) => {
     setZonasAbiertas((prev) => ({ ...prev, [zona]: !(prev[zona] ?? true) }));
   };
-
   const pctDesdeMinutos = (min: number) => {
     const clamped = Math.max(H0 * 60, Math.min(H1 * 60, min));
     return ((clamped - H0 * 60) / (TOTAL_HORAS * 60)) * 100;
   };
-
   return (
     <TooltipProvider delayDuration={120}>
       <div className="space-y-4">
@@ -206,7 +219,6 @@ function Page() {
           t="Tablero de disponibilidad"
           d="Línea de tiempo panorámica de espacios y subdivisiones (06:00 – 19:00)"
         />
-
         {/* 3 Tarjetas KPI minimalistas en línea */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="border-emerald-200/70 bg-card">
@@ -223,7 +235,6 @@ function Page() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="flex items-center justify-between p-4">
               <div>
@@ -235,7 +246,6 @@ function Page() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="flex items-center justify-between p-4">
               <div>
@@ -248,7 +258,6 @@ function Page() {
             </CardContent>
           </Card>
         </div>
-
         {/* Barra de filtros en una sola fila */}
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3">
@@ -260,7 +269,6 @@ function Page() {
                 value={dia}
                 onChange={(e) => e.target.value && setDia(e.target.value)}
               />
-
               <select
                 aria-label="Filtrar por piso o zona"
                 value={zonaFiltro}
@@ -274,7 +282,6 @@ function Page() {
                   </option>
                 ))}
               </select>
-
               <div className="relative flex items-center">
                 <Users className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
@@ -288,36 +295,48 @@ function Page() {
                 />
               </div>
             </div>
-
             <LeyendaColores />
           </CardContent>
         </Card>
-
         {/* Línea de Tiempo de Recursos (06:00 a 19:00) */}
         <Card className="overflow-hidden">
-          <CardContent className="p-0 overflow-x-auto">
-            <div className="min-w-[960px]">
-              {/* Cabecera de horas */}
-              <div className="grid grid-cols-[260px_1fr] border-b bg-muted/40">
-                <div className="sticky left-0 z-30 flex items-center justify-between border-r bg-muted/95 px-3 py-2.5 text-xs font-semibold text-foreground backdrop-blur-xs">
+          <div className="border-b bg-muted/30 pt-1 pb-0.5">
+            <div
+              ref={topScrollRef}
+              className="overflow-x-auto overflow-y-hidden"
+              aria-label="Desplazamiento horizontal superior"
+            >
+              <div ref={topInnerRef} className="h-1.5" />
+            </div>
+          </div>
+          <CardContent
+            ref={tableContainerRef}
+            className="p-0 max-h-[calc(100vh-17rem)] min-h-[360px] overflow-auto"
+          >
+            <div ref={timelineInnerRef} className="min-w-[1352px]">
+              {/* Cabecera de horas fija arriba */}
+              <div className="sticky top-0 z-30 grid grid-cols-[260px_1fr] border-b bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                <div className="sticky left-0 z-40 flex items-center justify-between border-r bg-muted px-3 py-2.5 text-xs font-semibold text-foreground shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
                   <span>Espacio / Subdivisión</span>
                   <span className="text-[11px] font-normal text-muted-foreground">Aforo</span>
                 </div>
-                <div className="relative grid grid-cols-13">
+                <div
+                  className="relative grid"
+                  style={{ gridTemplateColumns: "repeat(13, minmax(84px, 1fr))" }}
+                >
                   {HORAS.map((h) => (
                     <div
                       key={h}
-                      className="border-l px-1.5 py-2.5 text-[11px] font-medium text-muted-foreground first:border-l-0"
+                      className="border-l px-2 py-2.5 text-[11px] font-medium text-muted-foreground first:border-l-0"
                     >
                       {String(h).padStart(2, "0")}:00
                     </div>
                   ))}
-                  <span className="pointer-events-none absolute right-1.5 top-2.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="pointer-events-none absolute right-2 top-2.5 text-[11px] font-medium text-muted-foreground">
                     19:00
                   </span>
                 </div>
               </div>
-
               {/* Grupos por zona en acordeones colapsables */}
               {ZONAS.map(([zonaKey, zonaLabel]) => {
                 const espaciosZona = espaciosFiltrados.filter(
@@ -325,16 +344,15 @@ function Page() {
                 );
                 if (espaciosZona.length === 0) return null;
                 const abierta = zonasAbiertas[zonaKey] ?? true;
-
                 return (
                   <div key={zonaKey} className="border-b last:border-b-0">
                     {/* Encabezado del acordeón de zona */}
                     <button
                       type="button"
                       onClick={() => toggleZona(zonaKey)}
-                      className="flex w-full items-center justify-between bg-muted/25 px-3 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted/50"
+                      className="flex w-full items-center bg-muted/40 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
                     >
-                      <span className="sticky left-3 inline-flex items-center gap-1.5">
+                      <span className="sticky left-0 z-20 inline-flex items-center gap-1.5 px-3">
                         {abierta ? (
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         ) : (
@@ -346,21 +364,19 @@ function Page() {
                         </Badge>
                       </span>
                     </button>
-
                     {/* Filas de salones y subdivisiones */}
                     {abierta &&
                       espaciosZona.map((s: Row) => {
                         const rs = reservasPorEspacio.get(s.id) ?? [];
                         const carriles = asignarCarriles(rs);
                         const rowHeight = Math.max(44, (carriles[0]?.lanes ?? 1) * 32 + 12);
-
                         return (
                           <div
                             key={s.id}
                             className="grid grid-cols-[260px_1fr] border-t border-border/60 transition-colors hover:bg-muted/10"
                           >
-                            {/* Eje Vertical Fijo */}
-                            <div className="sticky left-0 z-20 flex items-center justify-between gap-2 border-r bg-card px-3 py-2">
+                            {/* Columna izquierda fija */}
+                            <div className="sticky left-0 z-20 flex items-center justify-between gap-2 border-r bg-card px-3 py-2 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)]">
                               <span className="truncate text-xs font-medium text-foreground" title={s.name}>
                                 {s.name}
                               </span>
@@ -375,35 +391,33 @@ function Page() {
                                 Cap: {s.capacity ?? 0}
                               </Badge>
                             </div>
-
-                            {/* Eje Horizontal (06:00 a 19:00) */}
+                            {/* Eje Horizontal desplazable (06:00 a 19:00) */}
                             <div
                               className="relative bg-emerald-50/50"
                               style={{ height: `${rowHeight}px` }}
                             >
                               {/* Rejilla horaria de fondo */}
-                              <div className="pointer-events-none absolute inset-0 grid grid-cols-13">
+                              <div
+                                className="pointer-events-none absolute inset-0 grid"
+                                style={{ gridTemplateColumns: "repeat(13, minmax(84px, 1fr))" }}
+                              >
                                 {HORAS.map((h) => (
                                   <div key={h} className="border-l border-emerald-950/5 first:border-l-0" />
                                 ))}
                               </div>
-
                               {/* Bloques / píldoras rojas de reservas activas */}
                               {carriles.map(({ r, lane, lanes }) => {
                                 const iniMin = minutosBogota(r.starts_at);
                                 const finMin = minutosBogota(r.ends_at);
                                 if (finMin <= H0 * 60 || iniMin >= H1 * 60) return null;
-
                                 const leftPct = pctDesdeMinutos(iniMin);
                                 const rightPct = pctDesdeMinutos(finMin);
                                 const widthPct = Math.max(1.5, rightPct - leftPct);
                                 const modulo = r.activities?.name ?? "Práctica";
                                 const docente =
                                   r.docente_responsable_nombre ?? r.solicitante_nombre ?? "Sin docente asignado";
-
                                 const topPct = (lane / lanes) * 100;
                                 const heightPct = 100 / lanes;
-
                                 return (
                                   <Tooltip key={r.id}>
                                     <TooltipTrigger asChild>
@@ -445,7 +459,6 @@ function Page() {
                   </div>
                 );
               })}
-
               {!q.isLoading && espaciosFiltrados.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">
                   No hay espacios que coincidan con los filtros seleccionados.
@@ -454,7 +467,6 @@ function Page() {
             </div>
           </CardContent>
         </Card>
-
         {/* Modal de detalle completo al hacer clic sobre un bloque rojo */}
         <Dialog open={!!detalle} onOpenChange={(o) => !o && setDetalle(null)}>
           <DialogContent className="max-w-md">
@@ -468,26 +480,20 @@ function Page() {
               <dl className="grid grid-cols-[135px_1fr] gap-x-3 gap-y-2 rounded-lg border bg-muted/20 p-3.5 text-xs">
                 <dt className="text-muted-foreground">Espacio</dt>
                 <dd className="font-medium">{detalle.space.name}</dd>
-
                 <dt className="text-muted-foreground">Docente</dt>
                 <dd className="font-medium">
                   {detalle.reserva.docente_responsable_nombre ?? detalle.reserva.solicitante_nombre ?? "—"}
                 </dd>
-
                 <dt className="text-muted-foreground">Programa</dt>
                 <dd>{detalle.reserva.programa ?? "—"}</dd>
-
                 <dt className="text-muted-foreground">Semestre</dt>
                 <dd>{detalle.reserva.semestre ? `${detalle.reserva.semestre}° semestre` : "—"}</dd>
-
                 <dt className="text-muted-foreground">Módulo</dt>
                 <dd className="font-medium">{detalle.reserva.activities?.name ?? "—"}</dd>
-
                 <dt className="text-muted-foreground">Horario exacto</dt>
                 <dd className="font-medium">
                   {hora(detalle.reserva.starts_at)} – {hora(detalle.reserva.ends_at)}
                 </dd>
-
                 <dt className="text-muted-foreground">N° de Estudiantes</dt>
                 <dd className="font-semibold">
                   {detalle.reserva.participants ?? 0} estudiantes{" "}
