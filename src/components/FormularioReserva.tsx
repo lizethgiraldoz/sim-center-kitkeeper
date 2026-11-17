@@ -23,7 +23,7 @@ type PrestamoItem = {
   esOtro?: boolean;
 };
 export const FACULTADES: Record<string, string[]> = {
-  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "APH", "Posgrados", "Tecnologías"],
+  "Facultad de Medicina": ["Medicina", "Instrumentación Quirúrgica", "APH", "Posgrados"],
   "Facultad de Enfermería": ["Enfermería"],
 };
 const PROGRAMAS_POR_PRACTICA: Record<string, string[]> = {
@@ -231,7 +231,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       .order("name")
       .then(({ data }) => setCatalogoInv(data ?? []));
   }, []);
-  const progNormalizado = h.programa === "Tecnologías" ? "APH" : h.programa;
+  const progNormalizado = h.programa;
   const activitiesFiltradas = useMemo(() => {
     const lista = activities.filter((a: Row) => {
       const nombreNorm = String(a.name ?? "").trim().toLowerCase();
