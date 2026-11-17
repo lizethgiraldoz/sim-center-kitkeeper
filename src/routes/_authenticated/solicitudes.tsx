@@ -69,6 +69,11 @@ function coincideDocente(consulta: string, r: Row): boolean {
     })
   );
 }
+function prioridadEstado(status?: string | null): number {
+  if (status === "SOLICITADA") return 0;
+  if (status === "APROBADA" || status === "EN_CURSO") return 1;
+  return 2;
+}
 function Page() {
   const [filtro, setFiltro] = useState("SOLICITADA");
   const [textoDocente, setTextoDocente] = useState("");
@@ -104,6 +109,9 @@ function Page() {
       .filter((r: Row) => filtro === "TODAS" || r.status === filtro)
       .filter((r: Row) => coincideDocente(busquedaDocente, r))
       .sort((a: Row, b: Row) => {
+        const estA = prioridadEstado(a.status);
+        const estB = prioridadEstado(b.status);
+        if (estA !== estB) return estA - estB;
         const fechaA = new Date(a.starts_at).getTime();
         const fechaB = new Date(b.starts_at).getTime();
         if (fechaA !== fechaB) return fechaA - fechaB;
@@ -180,7 +188,9 @@ function Page() {
         </p>
       )}
       <div className="space-y-3">
-        {rows.length === 0 && <p className="text-sm text-muted-foreground">No hay solicitudes de prácticas en este estado.</p>}
+        {rows.length === 0 && (
+          <p className="text-sm text-muted-foreground">No hay solicitudes de prácticas en este estado.</p>
+        )}
         {rows.map((r: Row) => (
           <Card key={r.id}>
             <CardContent className="p-4 flex flex-wrap items-center gap-3">
@@ -260,7 +270,12 @@ function Page() {
               variant="destructive"
               disabled={!motivo.trim()}
               onClick={async () => {
-                if (await run(supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }), "Reserva rechazada")) {
+                if (
+                  await run(
+                    supabase.rpc("rechazar_reserva", { _id: rechazo.id, _reason: motivo.trim() }),
+                    "Reserva rechazada"
+                  )
+                ) {
                   window.__lovableEvents?.track?.("project.reservation_status_changed", { status: "RECHAZADA" });
                   void notifyReservationPush({
                     data: {
@@ -301,7 +316,14 @@ function Page() {
           }}
         />
       )}
-      {ver && <DetalleReserva r={ver} open onOpenChange={(o) => !o && setVer(null)} onChanged={() => q.refetch()} />}
+      {ver && (
+        <DetalleReserva
+          r={ver}
+          open
+          onOpenChange={(o) => !o && setVer(null)}
+          onChanged={() => q.refetch()}
+        />
+      )}
     </div>
   );
 }

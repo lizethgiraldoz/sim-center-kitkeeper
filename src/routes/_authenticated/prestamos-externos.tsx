@@ -197,16 +197,35 @@ function Page() {
     return mapa;
   }, [q.data?.activas]);
   const externasFiltradas = useMemo(() => {
-    return (q.data?.externas ?? []).filter((r: Row) => {
+    const nivelEstado = (r: Row) => {
       const form = getForm(r);
-      const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
-      const aprobada = r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO";
-      const historial = r.status === "RECHAZADA" || r.status === "CANCELADA" || form?.estado === "SALIDA_RECHAZADA" || r.salida_estado === "RETORNADO";
-            if (filtroSol === "PENDIENTES" && !pendiente) return false;
-      if (filtroSol === "ACTIVOS" && !aprobada) return false;
-      if (filtroSol === "HISTORIAL" && !historial) return false;
-      return coincideResponsablePrestamo(busquedaDocenteSol, r);
-    });
+      if (r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA") return 0;
+      if (r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO") return 1;
+      return 2;
+    };
+    return (q.data?.externas ?? [])
+      .filter((r: Row) => {
+        const form = getForm(r);
+        const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
+        const aprobada = r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO";
+        const historial = r.status === "RECHAZADA" || r.status === "CANCELADA" || form?.estado === "SALIDA_RECHAZADA" || r.salida_estado === "RETORNADO";
+        if (filtroSol === "PENDIENTES" && !pendiente) return false;
+        if (filtroSol === "ACTIVOS" && !aprobada) return false;
+        if (filtroSol === "HISTORIAL" && !historial) return false;
+        return coincideResponsablePrestamo(busquedaDocenteSol, r);
+      })
+      .sort((a: Row, b: Row) => {
+        const estA = nivelEstado(a);
+        const estB = nivelEstado(b);
+        if (estA !== estB) return estA - estB;
+        const fechaA = new Date(getForm(a)?.departure_at ?? a.starts_at).getTime();
+        const fechaB = new Date(getForm(b)?.departure_at ?? b.starts_at).getTime();
+        if (fechaA !== fechaB) return fechaA - fechaB;
+        const creadaA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const creadaB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (creadaA !== creadaB) return creadaA - creadaB;
+        return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+      });
   }, [q.data?.externas, filtroSol, busquedaDocenteSol]);
   const recursosFiltrados = useMemo(() => {
     const term = busquedaInv.trim().toLowerCase();
