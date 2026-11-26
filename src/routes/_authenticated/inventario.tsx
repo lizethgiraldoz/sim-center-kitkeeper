@@ -214,6 +214,7 @@ function Page() {
   const [recursoDescModal, setRecursoDescModal] = useState<Row | null>(null);
   const [textoDescModal, setTextoDescModal] = useState("");
   const [guardandoDesc, setGuardandoDesc] = useState(false);
+  const [recursoEstadosModal, setRecursoEstadosModal] = useState<Row | null>(null);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -226,10 +227,11 @@ function Page() {
         supabase.from("quirofano_instrumental").select("*"),
         supabase
           .from("reservation_resources")
-          .select("resource_id, quantity, cantidad_aprobada, reservations!inner(status, ends_at, leaves_faculty, salida_estado)")
+          .select("resource_id, quantity, cantidad_aprobada, resources(name), reservations!inner(id, status, starts_at, ends_at, leaves_faculty, salida_estado, solicitante_nombre, docente_responsable_nombre, notes, spaces(name), external_exit_forms(responsible_name, destination, departure_at, return_at, items, estado))")
           .in("reservations.status", ["APROBADA", "EN_CURSO"]),
       ]);
       const reservados: Record<string, number> = {};
+      const usosPorRecurso: Record<string, Row[]> = {};
       (a.data ?? []).forEach((x: Row) => {
         const res = Array.isArray(x.reservations) ? x.reservations[0] : x.reservations;
         if (!res) return;
@@ -241,9 +243,40 @@ function Page() {
         const cant = Number(x.cantidad_aprobada ?? x.quantity ?? 0);
         if (cant > 0) {
           reservados[x.resource_id] = (reservados[x.resource_id] ?? 0) + cant;
+          const formRaw = Array.isArray(res.external_exit_forms)
+            ? res.external_exit_forms[0]
+            : res.external_exit_forms;
+          const resInfo = Array.isArray(x.resources) ? x.resources[0] : x.resources;
+          const spaceInfo = Array.isArray(res.spaces) ? res.spaces[0] : res.spaces;
+          const placasAsignadas: string[] = [];
+          if (Array.isArray(formRaw?.items)) {
+            for (const it of formRaw.items) {
+              const coincideNombre =
+                String(it?.descripcion ?? "").trim().toLowerCase() ===
+                String(resInfo?.name ?? "").trim().toLowerCase();
+              if (coincideNombre && it?.numero_inventario) {
+                placasAsignadas.push(...parsePlacas(String(it.numero_inventario)));
+              }
+            }
+          }
+          if (!usosPorRecurso[x.resource_id]) usosPorRecurso[x.resource_id] = [];
+          usosPorRecurso[x.resource_id].push({
+            id: res.id,
+            cantidad: cant,
+            esExterno: esPrestamoExterno,
+            quien:
+              formRaw?.responsible_name ||
+              res.docente_responsable_nombre ||
+              res.solicitante_nombre ||
+              "Docente / Solicitante sin nombre",
+            destino: formRaw?.destination || spaceInfo?.name || "Laboratorio de Simulación",
+            inicio: formRaw?.departure_at ?? res.starts_at,
+            fin: formRaw?.return_at ?? res.ends_at,
+            placasAsignadas,
+          });
         }
       });
-      return { recursos: r.data ?? [], kits: k.data ?? [], reservados };
+      return { recursos: r.data ?? [], kits: k.data ?? [], reservados, usosPorRecurso };
     },
   });
   const cambiar = async (
@@ -713,7 +746,7 @@ function Page() {
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Fuera de servicio</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Reservados activos</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Disponible</TableHead>
-                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Estado general</TableHead>
+                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-center">Trazabilidad / Estados</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -829,18 +862,16 @@ function Page() {
                           <TableCell className={`text-right font-semibold ${disp === 0 ? "text-destructive" : "text-primary"}`}>
                             {disp}
                           </TableCell>
-                          <TableCell>
-                            <select
-                              className="border rounded-md h-8 px-1 text-xs bg-background text-foreground"
-                              value={ESTADOS.includes(r.status) ? r.status : "DISPONIBLE"}
-                              onChange={(e) => cambiar(r.id, { status: e.target.value as (typeof ESTADOS)[number] })}
+                          <TableCell className="text-center">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={() => setRecursoEstadosModal(r)}
                             >
-                              {ESTADOS.map((s) => (
-                                <option key={s} value={s}>
-                                  {s.replaceAll("_", " ")}
-                                </option>
-                              ))}
-                            </select>
+                              Ver estados
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );

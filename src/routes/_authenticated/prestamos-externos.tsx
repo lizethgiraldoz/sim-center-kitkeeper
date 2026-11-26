@@ -70,17 +70,40 @@ function infoTemporal(inicioIso?: string | null, finIso?: string | null, salidaE
   return { duracion, estado: `Plazo vencido hace ${formatearIntervalo(ahora - fin)}`, tono: "danger" as const };
 }
 function resumenElementosPrestados(r: Row): string {
-  const items = (r.reservation_resources ?? []).filter(
-    (it: Row) => (it.cantidad_aprobada ?? it.quantity ?? 0) > 0
-  );
-  if (items.length === 0) return "Préstamo / salida externa";
-  return items
-    .map((it: Row) => {
-      const cant = it.cantidad_aprobada ?? it.quantity ?? 1;
-      const nombre = it.resources?.name ?? "Elemento";
-      return `${cant} × ${nombre}`;
-    })
-    .join(", ");
+  const form = getForm(r);
+  const recs = r.reservation_resources ?? [];
+  if (Array.isArray(form?.items) && form.items.length > 0) {
+    return form.items
+      .map((it: Row) => {
+        const matchRec = recs.find(
+          (rr: Row) =>
+            String(rr.resources?.name ?? "").trim().toLowerCase() ===
+            String(it.descripcion ?? "").trim().toLowerCase()
+        );
+        const placa = it.numero_inventario || matchRec?.resources?.numero_inventario || "";
+        return `${it.cantidad ?? 1} × ${it.descripcion} (${formatearPlacaElemento(placa)})`;
+      })
+      .join(" · ");
+  }
+  if (recs.length > 0) {
+    return recs
+      .map((x: Row) => {
+        const cant = x.cantidad_aprobada ?? x.quantity ?? 1;
+        const nom = x.resources?.name ?? "Recurso";
+        const placa = x.resources?.numero_inventario ?? "";
+        return `${cant} × ${nom} (${formatearPlacaElemento(placa)})`;
+      })
+      .join(" · ");
+  }
+  if (form?.inventory_detail?.trim()) {
+    return form.inventory_detail
+      .split("\n")
+      .map((l: string) => l.trim())
+      .filter(Boolean)
+      .map((l: string) => (l.includes("(Inv:") || l.includes("(N°") || l.includes("(---)")) ? l : `${l} (---)`)
+      .join(" · ");
+  }
+  return "Sin elementos especificados (---)";
 }
 function getForm(r: Row) {
   return Array.isArray(r?.external_borrow_forms) ? r.external_borrow_forms[0] : r?.external_borrow_forms;
@@ -480,34 +503,37 @@ function Page() {
                             Equipo: {r.salida_estado}
                           </span>
                         )}
-                        <strong className="text-base">{form?.destination ?? "Salida externa"}</strong>
-                        <span className="text-xs text-muted-foreground">({r.activities?.name})</span>
+                        <strong className="text-base">{form?.destination ?? "Destino sin especificar"}</strong>
+                        {r.activities?.name && (
+                          <span className="text-xs text-muted-foreground">({r.activities.name})</span>
+                        )}
                       </div>
                       <p className="text-sm">
                         <strong>Responsable que retira:</strong> {form?.responsible_name ?? r.docente_responsable_nombre ?? "—"}
                         {form?.cargo ? ` · ${form.cargo}` : ""}
                         {form?.responsible_phone ? ` · Tel: ${form.responsible_phone}` : ""}
                       </p>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span><strong>Salida:</strong> {fmt(ini)}</span>
-                        <ArrowRight className="h-3 w-3 inline" />
-                        <span><strong>Devolución:</strong> {fmt(fin)}</span>
-                        <span><strong>Duración:</strong> {temp.duracion}</span>
-                        <span className={`font-semibold ${
-                          temp.tono === "danger" ? "text-destructive"
-                            : temp.tono === "warn" ? "text-orange"
-                              : temp.tono === "ok" ? "text-success"
-                                : "text-primary"
-                        }`}>
-                          ({temp.estado})
+                      <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>
+                          <strong>Salida:</strong> {fmt(ini)}
                         </span>
-                      </div>
-                      <div className="text-xs pt-1">
-                        <strong>Dispositivos solicitados: </strong>
-                        {recs.length > 0
-                          ? recs.map((x: Row) => `${x.cantidad_aprobada ?? x.quantity} × ${x.resources?.name}`).join(" · ")
-                          : (form?.inventory_detail || "Ver detalle en formulario")}
-                      </div>
+                        <span>→</span>
+                        <span>
+                          <strong>Devolución:</strong> {fmt(fin)}
+                        </span>
+                        <span>
+                          <strong>Duración:</strong> {temp.duracion}
+                        </span>
+                        <span className={`font-semibold ${temp.tone}`}>{temp.etiqueta}</span>
+                      </p>
+                      <p className="text-xs">
+                        <strong>Dispositivos solicitados:</strong> {resumenElementosPrestados(r)}
+                      </p>
+                      {form?.estado === "SALIDA_RECHAZADA" && form?.motivo_rechazo && (
+                        <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">
+                          <strong>Motivo de rechazo:</strong> {form.motivo_rechazo}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {r.status === "APROBADA" && form?.estado === "SALIDA_APROBADA" && (
@@ -666,6 +692,14 @@ type ItemSalida = {
   placasDisponibles?: string[];
   placasElegidas?: string[];
 };
+function formatearPlacaElemento(placaRaw?: string | null): string {
+  const limpia = String(placaRaw ?? "")
+    .split(/[,;\n]+/)
+    .map((p) => p.trim())
+    .filter((p) => p && p.toLowerCase() !== "null")
+    .join(", ");
+  return limpia ? `N° ${limpia}` : "---";
+}
 function parsePlacasDisponibles(raw?: string | null): string[] {
   if (!raw) return [];
   const vistas = new Set<string>();
