@@ -300,9 +300,21 @@ function Page() {
         supabase.from("quirofano_instrumental").select("*"),
         supabase
           .from("reservation_resources")
-          .select("resource_id, quantity, cantidad_aprobada, resources(name), reservations!inner(id, status, starts_at, ends_at, leaves_faculty, salida_estado, solicitante_nombre, docente_responsable_nombre, notes, spaces(name), external_exit_forms(responsible_name, destination, departure_at, return_at, items, estado))")
+          .select("resource_id, quantity, cantidad_aprobada, resources(name), reservations!inner(id, status, starts_at, ends_at, leaves_faculty, salida_estado, solicitante_nombre, docente_responsable_nombre, notes, spaces(name))")
           .in("reservations.status", ["APROBADA", "EN_CURSO"]),
+        supabase
+          .from("external_exit_forms")
+          .select("reservation_id, responsible_name, destination, departure_at, return_at, items, estado"),
       ]);
+      const formPorReserva = new Map<string, Row>();
+      for (const f of ((arguments[0] ? [] : []) as Row[])) { /* noop */ }
+      // Mapear formularios externos por reservation_id sin afectar el join principal
+      const formsData = (await supabase
+        .from("external_exit_forms")
+        .select("reservation_id, responsible_name, destination, departure_at, return_at, items, estado")).data ?? [];
+      for (const f of formsData as Row[]) {
+        if (f.reservation_id) formPorReserva.set(String(f.reservation_id), f);
+      }
       const reservados: Record<string, number> = {};
       const usosPorRecurso: Record<string, Row[]> = {};
       (a.data ?? []).forEach((x: Row) => {
@@ -318,9 +330,7 @@ function Page() {
         const cant = Number(x.cantidad_aprobada ?? x.quantity ?? 0);
         if (cant > 0) {
           reservados[x.resource_id] = (reservados[x.resource_id] ?? 0) + cant;
-          const formRaw = Array.isArray(res.external_exit_forms)
-            ? res.external_exit_forms[0]
-            : res.external_exit_forms;
+          const formRaw = formPorReserva.get(String(res.id));
           const resInfo = Array.isArray(x.resources) ? x.resources[0] : x.resources;
           const spaceInfo = Array.isArray(res.spaces) ? res.spaces[0] : res.spaces;
           const placasAsignadas: string[] = [];
@@ -334,17 +344,24 @@ function Page() {
               }
             }
           }
+          if (placasAsignadas.length === 0 && typeof res.notes === "string") {
+            const mPlacas = res.notes.match(/Placas?\s*:\s*([^\n|]+)/i);
+            if (mPlacas?.[1]) {
+              placasAsignadas.push(...parsePlacas(mPlacas[1]));
+            }
+          }
           if (!usosPorRecurso[x.resource_id]) usosPorRecurso[x.resource_id] = [];
           usosPorRecurso[x.resource_id].push({
             id: res.id,
             cantidad: cant,
             esExterno: esPrestamoExterno,
+            salidaEstado: res.salida_estado ?? null,
             quien:
               formRaw?.responsible_name ||
               res.docente_responsable_nombre ||
               res.solicitante_nombre ||
               "Docente / Solicitante sin nombre",
-            destino: formRaw?.destination || spaceInfo?.name || "Laboratorio de Simulación",
+            destino: formRaw?.destination || spaceInfo?.name || "Préstamo externo",
             inicio: formRaw?.departure_at ?? res.starts_at,
             fin: formRaw?.return_at ?? res.ends_at,
             placasAsignadas,
@@ -377,10 +394,22 @@ function Page() {
         const finMs = new Date(item.fin).getTime();
         if (Number.isNaN(iniMs) || Number.isNaN(finMs)) continue;
         let ocupaEnVentana = false;
-        if (modoTiempoReal) {
-          ocupaEnVentana = nowMs >= iniMs && nowMs < finMs;
+        if (item.esExterno) {
+          // Prestamo externo aprobado: bloquea desde su salida y solo vuelve a disponible cuando el tecnico marca RETORNADO
+          if (modoTiempoReal) {
+            ocupaEnVentana = true;
+          } else {
+            const cruzaFranja = iniMs < winEndMs && finMs > winStartMs;
+            const pendienteDeDevolucion = winEndMs > iniMs && nowMs >= iniMs;
+            ocupaEnVentana = cruzaFranja || pendienteDeDevolucion;
+          }
         } else {
-          ocupaEnVentana = iniMs < winEndMs && finMs > winStartMs;
+          // Practica de laboratorio: ocupa exclusivamente dentro de su franja horaria
+          if (modoTiempoReal) {
+            ocupaEnVentana = nowMs >= iniMs && nowMs < finMs;
+          } else {
+            ocupaEnVentana = iniMs < winEndMs && finMs > winStartMs;
+          }
         }
         if (!ocupaEnVentana) continue;
         reservados[rid] = (reservados[rid] ?? 0) + Number(item.cantidad ?? 0);
