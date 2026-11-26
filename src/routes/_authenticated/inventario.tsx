@@ -311,7 +311,19 @@ function Page() {
     setIndiceSeleccionadoModal((prev) => Math.max(0, Math.min(prev, siguiente.length - 1)));
   };
   const validarYConfirmarPlacas = () => {
-    const limpias = placasEditadasModal.map((p) => p.trim()).filter(Boolean);
+    const pendiente = nuevaPlacaInput.trim();
+    const listaBase = [...placasEditadasModal];
+    if (pendiente) {
+      if (listaBase.some((p) => p.trim().toUpperCase() === pendiente.toUpperCase())) {
+        toast.error(`La placa "${pendiente}" ya está en la lista de este dispositivo.`);
+        return;
+      }
+      listaBase.push(pendiente);
+      setPlacasEditadasModal(listaBase);
+      setIndiceSeleccionadoModal(listaBase.length - 1);
+      setNuevaPlacaInput("");
+    }
+    const limpias = listaBase.map((p) => p.trim()).filter(Boolean);
     const vistas = new Set<string>();
     for (const p of limpias) {
       const up = p.toUpperCase();
@@ -332,7 +344,10 @@ function Page() {
         }
       }
     }
-    if (cambiosPlacasDetectados.length === 0) {
+    const hayCambios =
+      limpias.length !== placasOriginalesModal.length ||
+      limpias.some((p, idx) => p !== (placasOriginalesModal[idx] ?? "").trim());
+    if (!hayCambios) {
       toast.info("No hay cambios pendientes en las placas.");
       return;
     }
@@ -700,7 +715,7 @@ function Page() {
                   <TableHeader className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
                     <TableRow className="hover:bg-muted">
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Recurso</TableHead>
-                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">NÓ inventario / Placas</TableHead>
+                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">N° inventario / Placas</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Descripción</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Tipo</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Total</TableHead>
@@ -888,7 +903,7 @@ function Page() {
         <Dialog open={Boolean(recursoPlacasModal)} onOpenChange={(open) => !open && cerrarModalPlacas()}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Gestión de placas / NÓ de inventario</DialogTitle>
+              <DialogTitle>Gestión de placas / N° de inventario</DialogTitle>
               <DialogDescription>
                 {recursoPlacasModal ? corregirNombreTorso(String(recursoPlacasModal.name ?? "")) : ""}
               </DialogDescription>
@@ -936,7 +951,7 @@ function Page() {
                                 prev.map((item, i) => (i === idx ? val : item))
                               );
                             }}
-                            placeholder="NÓ de inventario / placa"
+                            placeholder="N° de inventario / placa"
                             className="h-8 font-mono text-xs"
                           />
                           {modificada && (
