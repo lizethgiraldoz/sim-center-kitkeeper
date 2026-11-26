@@ -213,21 +213,30 @@ function Page() {
   const externasFiltradas = useMemo(() => {
     const nivelEstado = (r: Row) => {
       const form = getForm(r);
-      if (r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA") return 0;
-      if (r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO") return 1;
+      if (r.status === "SOLICITADA" && form?.estado !== "SALIDA_APROBADA" && form?.estado !== "SALIDA_RECHAZADA") return 0;
+      if ((r.status === "APROBADA" || r.status === "EN_CURSO") && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO") return 1;
       return 2;
     };
     return (q.data?.externas ?? [])
       .filter((r: Row) => {
         const form = getForm(r);
-        const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
-        const aprobada = (r.status === "APROBADA" || r.status === "EN_CURSO") && form?.estado !== "SALIDA_RECHAZADA";
+        const rechazada = r.status === "RECHAZADA" || form?.estado === "SALIDA_RECHAZADA";
+        const pendiente =
+          r.status === "SOLICITADA" &&
+          form?.estado !== "SALIDA_APROBADA" &&
+          form?.estado !== "SALIDA_RECHAZADA";
+        const aprobada = (r.status === "APROBADA" || r.status === "EN_CURSO") && !rechazada;
         const enPrestamo = aprobada && r.salida_estado !== "RETORNADO";
-        const historial = r.status === "RECHAZADA" || r.status === "CANCELADA" || form?.estado === "SALIDA_RECHAZADA" || r.salida_estado === "RETORNADO";
+        const finIso = form?.return_at ?? r.ends_at;
+        const finMs = finIso ? new Date(finIso).getTime() : NaN;
+        const vencida = enPrestamo && !Number.isNaN(finMs) && finMs < Date.now();
+        const devuelto = aprobada && r.salida_estado === "RETORNADO";
         if (filtroSol === "PENDIENTES" && !pendiente) return false;
         if (filtroSol === "APROBADOS" && !aprobada) return false;
         if (filtroSol === "EN_PRESTAMO" && !enPrestamo) return false;
-        if (filtroSol === "HISTORIAL" && !historial) return false;
+        if (filtroSol === "VENCIDOS" && !vencida) return false;
+        if (filtroSol === "DEVUELTOS" && !devuelto) return false;
+        if (filtroSol === "RECHAZADOS" && !rechazada) return false;
         return coincideResponsablePrestamo(busquedaDocenteSol, r);
       })
       .sort((a: Row, b: Row) => {
@@ -263,7 +272,7 @@ function Page() {
   }, [q.data?.recursos, ocupacionPorRecurso, busquedaInv, filtroInv]);
   const totalPendientes = (q.data?.externas ?? []).filter((r: Row) => {
     const f = getForm(r);
-    return r.status === "SOLICITADA" || f?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
+    return r.status === "SOLICITADA" && f?.estado !== "SALIDA_APROBADA" && f?.estado !== "SALIDA_RECHAZADA";
   }).length;
   const totalEnPrestamo = (q.data?.externas ?? []).filter((r: Row) => {
     const f = getForm(r);
@@ -322,7 +331,9 @@ function Page() {
                 { id: "PENDIENTES", label: "Pendientes de decisión" },
                 { id: "APROBADOS", label: "Aprobados" },
                 { id: "EN_PRESTAMO", label: "En préstamo" },
-                { id: "HISTORIAL", label: "Devueltos / Rechazados" },
+                { id: "VENCIDOS", label: "Vencidos" },
+                { id: "DEVUELTOS", label: "Devueltos" },
+                { id: "RECHAZADOS", label: "Rechazados" },
                 { id: "TODAS", label: "Todas" },
               ].map((f) => (
                 <Button
@@ -408,9 +419,9 @@ function Page() {
               const ini = form?.departure_at ?? r.starts_at;
               const fin = form?.return_at ?? r.ends_at;
               const temp = infoTemporal(ini, fin, r.salida_estado);
-              const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
+              const pendiente = r.status === "SOLICITADA" && form?.estado !== "SALIDA_APROBADA" && form?.estado !== "SALIDA_RECHAZADA";
               const recs = r.reservation_resources ?? [];
-              if (filtroSol === "EN_PRESTAMO") {
+              if (filtroSol === "EN_PRESTAMO" || filtroSol === "VENCIDOS") {
                 return (
                   <Card key={r.id}>
                     <CardContent className="p-4">
@@ -668,7 +679,7 @@ function ModalGestionPrestamoExterno({
   const ini = form?.departure_at ?? r.starts_at;
   const fin = form?.return_at ?? r.ends_at;
   const temp = infoTemporal(ini, fin, r.salida_estado);
-  const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
+  const pendiente = r.status === "SOLICITADA" && form?.estado !== "SALIDA_APROBADA" && form?.estado !== "SALIDA_RECHAZADA";
   const [autoriza, setAutoriza] = useState({
     nombre: form?.autoriza_nombre ?? "",
     cargo: form?.autoriza_cargo ?? "",
