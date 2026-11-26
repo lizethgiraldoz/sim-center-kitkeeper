@@ -206,6 +206,8 @@ function Page() {
     const ahora = Date.now();
     for (const r of q.data?.activas ?? []) {
       if (r.salida_estado === "RETORNADO") continue;
+      const finPrestamoMs = new Date(fin).getTime();
+      if (!Number.isNaN(finPrestamoMs) && finPrestamoMs <= nowMs) continue;
       const form = getForm(r);
       const ini = form?.departure_at ?? r.starts_at;
       const fin = form?.return_at ?? r.ends_at;

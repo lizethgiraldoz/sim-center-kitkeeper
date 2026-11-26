@@ -309,10 +309,12 @@ function Page() {
         const res = Array.isArray(x.reservations) ? x.reservations[0] : x.reservations;
         if (!res) return;
         const esPrestamoExterno = Boolean(res.leaves_faculty);
-        const sigueOcupado = esPrestamoExterno
-          ? res.salida_estado !== "RETORNADO"
-          : new Date(res.ends_at).getTime() >= nowMs;
-        if (!sigueOcupado) return;
+        const yaCerrado = esPrestamoExterno
+          ? res.salida_estado === "RETORNADO"
+          : ["ASISTIO", "NO_ASISTIO", "CANCELADA", "FINALIZADA"].includes(
+              String((res as Row).attendance_status ?? "").toUpperCase()
+            ) || res.status === "FINALIZADA";
+        if (yaCerrado) return;
         const cant = Number(x.cantidad_aprobada ?? x.quantity ?? 0);
         if (cant > 0) {
           reservados[x.resource_id] = (reservados[x.resource_id] ?? 0) + cant;
@@ -375,20 +377,10 @@ function Page() {
         const finMs = new Date(item.fin).getTime();
         if (Number.isNaN(iniMs) || Number.isNaN(finMs)) continue;
         let ocupaEnVentana = false;
-        if (item.esExterno) {
-          if (modoTiempoReal) {
-            ocupaEnVentana = true;
-          } else {
-            const cruzaFranja = iniMs < winEndMs && finMs > winStartMs;
-            const siguePendienteDespuesDeFin = winStartMs >= finMs && nowMs >= finMs;
-            ocupaEnVentana = cruzaFranja || siguePendienteDespuesDeFin;
-          }
+        if (modoTiempoReal) {
+          ocupaEnVentana = nowMs >= iniMs && nowMs < finMs;
         } else {
-          if (modoTiempoReal) {
-            ocupaEnVentana = nowMs >= iniMs && nowMs < finMs;
-          } else {
-            ocupaEnVentana = iniMs < winEndMs && finMs > winStartMs;
-          }
+          ocupaEnVentana = iniMs < winEndMs && finMs > winStartMs;
         }
         if (!ocupaEnVentana) continue;
         reservados[rid] = (reservados[rid] ?? 0) + Number(item.cantidad ?? 0);
@@ -1009,7 +1001,7 @@ function Page() {
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Total</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Mantenimiento</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Fuera de servicio</TableHead>
-                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Reservados activos</TableHead>
+                      <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">En uso</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Disponible</TableHead>
                       <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-center">Trazabilidad / Estados</TableHead>
                     </TableRow>
@@ -1135,7 +1127,15 @@ function Page() {
                           <TableCell className="text-right">{r.quantity_total}</TableCell>
                           <TableCell>{num("maintenance_quantity")}</TableCell>
                           <TableCell>{num("out_of_service_quantity")}</TableCell>
-                          <TableCell className="text-right">{res}</TableCell>
+                          <TableCell className="text-right">
+  {res > 0 ? (
+    <span className="inline-flex items-center rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-900">
+      {res} en uso
+    </span>
+  ) : (
+    <span className="text-muted-foreground">0</span>
+  )}
+</TableCell>
                           <TableCell className={`text-right font-semibold ${disp === 0 ? "text-destructive" : "text-primary"}`}>
                             {disp}
                           </TableCell>
@@ -1413,7 +1413,7 @@ function Page() {
               const fueraCount = Math.max(0, Number(rModal.out_of_service_quantity ?? 0) - fueraPorPlacaModal);
               type FilaEstadoUnidad = {
                 placa: string;
-                estado: "En préstamo externo" | "En uso (Laboratorio)" | "En mantenimiento" | "Fuera de servicio" | "Disponible";
+                estado: "En uso" | "En mantenimiento" | "Fuera de servicio" | "Disponible";
                 badgeClass: string;
                 detalle: string;
               };
