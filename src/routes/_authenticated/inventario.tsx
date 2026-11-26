@@ -273,6 +273,16 @@ function Page() {
   const [textoDescModal, setTextoDescModal] = useState("");
   const [guardandoDesc, setGuardandoDesc] = useState(false);
   const [recursoEstadosModal, setRecursoEstadosModal] = useState<Row | null>(null);
+  const [recursoMantModal, setRecursoMantModal] = useState<Row | null>(null);
+  const [draftEstadosPlaca, setDraftEstadosPlaca] = useState<MapaEstadosPlaca>({});
+  const [guardandoEstadosPlaca, setGuardandoEstadosPlaca] = useState(false);
+  const [modoTiempoReal, setModoTiempoReal] = useState(true);
+  const [fechaConsulta, setFechaConsulta] = useState<string>(() => formatearFechaLocalInput(new Date()));
+  const [horaInicioConsulta, setHoraInicioConsulta] = useState<string>(() => formatearHoraLocalInput(new Date()));
+  const [horaFinConsulta, setHoraFinConsulta] = useState<string>(() => {
+    const fin = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    return formatearHoraLocalInput(fin);
+  });
   const topScrollRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -337,6 +347,55 @@ function Page() {
       return { recursos: r.data ?? [], kits: k.data ?? [], reservados, usosPorRecurso };
     },
   });
+  const { reservadosCalculados, usosPorRecursoCalculados } = useMemo(() => {
+    const nowMs = Date.now();
+    let winStartMs = nowMs;
+    let winEndMs = nowMs;
+    if (!modoTiempoReal && fechaConsulta) {
+      const hIni = horaInicioConsulta || "00:00";
+      const hFin = horaFinConsulta && horaFinConsulta > hIni ? horaFinConsulta : "23:59";
+      const s = new Date(`${fechaConsulta}T${hIni}:00-05:00`).getTime();
+      const e = new Date(`${fechaConsulta}T${hFin}:00-05:00`).getTime();
+      if (!Number.isNaN(s) && !Number.isNaN(e)) {
+        winStartMs = s;
+        winEndMs = Math.max(s + 60000, e);
+      }
+    }
+    const reservados: Record<string, number> = {};
+    const usosPorRecurso: Record<string, Row[]> = {};
+    const baseUsos = (q.data?.usosPorRecurso ?? {}) as Record<string, Row[]>;
+    for (const [rid, lista] of Object.entries(baseUsos)) {
+      for (const item of lista) {
+        const iniMs = new Date(item.inicio).getTime();
+        const finMs = new Date(item.fin).getTime();
+        if (Number.isNaN(iniMs) || Number.isNaN(finMs)) continue;
+        let ocupaEnVentana = false;
+        if (item.esExterno) {
+          if (modoTiempoReal) {
+            ocupaEnVentana = true;
+          } else {
+            const cruzaFranja = iniMs < winEndMs && finMs > winStartMs;
+            const siguePendienteDespuesDeFin = winStartMs >= finMs && nowMs >= finMs;
+            ocupaEnVentana = cruzaFranja || siguePendienteDespuesDeFin;
+          }
+        } else {
+          if (modoTiempoReal) {
+            ocupaEnVentana = nowMs >= iniMs && nowMs < finMs;
+          } else {
+            ocupaEnVentana = iniMs < winEndMs && finMs > winStartMs;
+          }
+        }
+        if (!ocupaEnVentana) continue;
+        reservados[rid] = (reservados[rid] ?? 0) + Number(item.cantidad ?? 0);
+        if (!usosPorRecurso[rid]) usosPorRecurso[rid] = [];
+        usosPorRecurso[rid].push(item);
+      }
+    }
+    return {
+      reservadosCalculados: reservados,
+      usosPorRecursoCalculados: usosPorRecurso,
+    };
+  }, [q.data?.usosPorRecurso, modoTiempoReal, fechaConsulta, horaInicioConsulta, horaFinConsulta]);
   const cambiar = async (
     id: string,
     patch: {
@@ -838,8 +897,57 @@ function Page() {
                   </Button>
                 )}
               </form>
-              
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">
+                <span className="font-semibold text-foreground">Consultar disponibilidad:</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={modoTiempoReal ? "default" : "outline"}
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => setModoTiempoReal(true)}
+                >
+                  Ahora
+                </Button>
+                <Input
+                  type="date"
+                  value={fechaConsulta}
+                  onChange={(e) => {
+                    setFechaConsulta(e.target.value);
+                    setModoTiempoReal(false);
+                  }}
+                  className="h-7 w-36 bg-background text-xs px-2"
+                />
+                <Input
+                  type="time"
+                  value={horaInicioConsulta}
+                  onChange={(e) => {
+                    setHoraInicioConsulta(e.target.value);
+                    setModoTiempoReal(false);
+                  }}
+                  className="h-7 w-24 bg-background text-xs px-2"
+                />
+                <span className="text-muted-foreground">a</span>
+                <Input
+                  type="time"
+                  value={horaFinConsulta}
+                  onChange={(e) => {
+                    setHoraFinConsulta(e.target.value);
+                    setModoTiempoReal(false);
+                  }}
+                  className="h-7 w-24 bg-background text-xs px-2"
+                />
+              </div>
             </div>
+            {!modoTiempoReal && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  Mostrando proyección del inventario para el día <strong>{fechaConsulta}</strong> de <strong>{horaInicioConsulta}</strong> a <strong>{horaFinConsulta}</strong> (prácticas programadas y préstamos activos en esa franja).
+                </span>
+                <Button type="button" size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setModoTiempoReal(true)}>
+                  Volver a tiempo real
+                </Button>
+              </div>
+            )}
             {filtroAplicado && (
               <p className="text-xs text-muted-foreground">
                 {recursosFiltrados.length === 0
