@@ -15,10 +15,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EstadoBadge } from "@/components/EstadoBadge";
+import { Seguimiento } from "@/components/Seguimiento";
 import { ChatReserva } from "@/components/ChatReserva";
 import { FormatoSalidaModal } from "@/components/FormatoSalida";
 import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
-import { RESERVA_SELECT, fmt, type Row } from "@/lib/app-data";
+import { RESERVA_SELECT, fmt, hora, type Row } from "@/lib/app-data";
 import { useNoLeidos } from "@/lib/unread";
 import { notifyReservationPush } from "@/lib/push.functions";
 export const Route = createFileRoute("/_authenticated/prestamos-externos")({
@@ -67,6 +68,19 @@ function infoTemporal(inicioIso?: string | null, finIso?: string | null, salidaE
     return { duracion, estado: `En uso · Devuelven en ${formatearIntervalo(fin - ahora)}`, tono: "warn" as const };
   }
   return { duracion, estado: `Plazo vencido hace ${formatearIntervalo(ahora - fin)}`, tono: "danger" as const };
+}
+function resumenElementosPrestados(r: Row): string {
+  const items = (r.reservation_resources ?? []).filter(
+    (it: Row) => (it.cantidad_aprobada ?? it.quantity ?? 0) > 0
+  );
+  if (items.length === 0) return "Préstamo / salida externa";
+  return items
+    .map((it: Row) => {
+      const cant = it.cantidad_aprobada ?? it.quantity ?? 1;
+      const nombre = it.resources?.name ?? "Elemento";
+      return `${cant} × ${nombre}`;
+    })
+    .join(", ");
 }
 function getForm(r: Row) {
   return Array.isArray(r?.external_borrow_forms) ? r.external_borrow_forms[0] : r?.external_borrow_forms;
@@ -207,10 +221,12 @@ function Page() {
       .filter((r: Row) => {
         const form = getForm(r);
         const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
-        const aprobada = r.status === "APROBADA" && form?.estado !== "SALIDA_RECHAZADA" && r.salida_estado !== "RETORNADO";
+        const aprobada = (r.status === "APROBADA" || r.status === "EN_CURSO") && form?.estado !== "SALIDA_RECHAZADA";
+        const enPrestamo = aprobada && r.salida_estado !== "RETORNADO";
         const historial = r.status === "RECHAZADA" || r.status === "CANCELADA" || form?.estado === "SALIDA_RECHAZADA" || r.salida_estado === "RETORNADO";
         if (filtroSol === "PENDIENTES" && !pendiente) return false;
-        if (filtroSol === "ACTIVOS" && !aprobada) return false;
+        if (filtroSol === "APROBADOS" && !aprobada) return false;
+        if (filtroSol === "EN_PRESTAMO" && !enPrestamo) return false;
         if (filtroSol === "HISTORIAL" && !historial) return false;
         return coincideResponsablePrestamo(busquedaDocenteSol, r);
       })
@@ -304,7 +320,8 @@ function Page() {
             <div className="flex flex-wrap gap-2">
               {[
                 { id: "PENDIENTES", label: "Pendientes de decisión" },
-                { id: "ACTIVOS", label: "Aprobados / En préstamo" },
+                { id: "APROBADOS", label: "Aprobados" },
+                { id: "EN_PRESTAMO", label: "En préstamo" },
                 { id: "HISTORIAL", label: "Devueltos / Rechazados" },
                 { id: "TODAS", label: "Todas" },
               ].map((f) => (
@@ -393,6 +410,43 @@ function Page() {
               const temp = infoTemporal(ini, fin, r.salida_estado);
               const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
               const recs = r.reservation_resources ?? [];
+              if (filtroSol === "EN_PRESTAMO") {
+                return (
+                  <Card key={r.id}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                              Préstamo / Salida externa
+                            </span>
+                            <strong>Elementos prestados: {resumenElementosPrestados(r)}</strong>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            Responsable: {r.docente_responsable_nombre ?? r.solicitante_nombre ?? "—"} · {fmt(r.starts_at)} – {hora(r.ends_at)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {r.status === "APROBADA" && form?.estado === "SALIDA_APROBADA" && (
+                            <Button size="sm" variant="outline" onClick={() => setImprimir(r)}>
+                              <Printer className="h-4 w-4 mr-1" />Formato VA-SL-FO-010
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={() => setGestionar(r)}>
+                            Gestionar / Chat
+                            {(noLeidos[r.id] ?? 0) > 0 && (
+                              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                                {noLeidos[r.id]}
+                              </span>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <Seguimiento r={r} onChanged={() => q.refetch()} />
+                    </CardContent>
+                  </Card>
+                );
+              }
               return (
                 <Card key={r.id} className={pendiente ? "border-primary/50" : ""}>
                   <CardContent className="p-4 flex flex-wrap items-start justify-between gap-4">
