@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Search, X } from "lucide-react";
+import { FileSpreadsheet, Pencil, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,56 @@ const KIND: Record<string, string> = {
   INSUMO: "Insumo",
   PAQUETE_QUIRURGICO: "Paquete quirúrgico",
 };
+type ItemExcelInventario = {
+  nombre: string;
+  placas: string[];
+  descripcion: string;
+  kind: "SIMULADOR" | "EQUIPO";
+};
+const INVENTARIO_EXCEL: ItemExcelInventario[] = [
+  { nombre: "TOROSO REANIMACION ADULTO", placas: ["130398-1", "130398-2", "130398-3", "130398-4", "150723-1", "150723-2", "150723-3", "150723-4"], descripcion: "simulador para practicas de ventilación con presión positiva y compresiones torácicas", kind: "SIMULADOR" },
+  { nombre: "TOROSO REANIMACION PEDIATRICO", placas: ["150725-1", "150725-2", "150725-3", "150725-4", "100013-1", "100013-2", "100013-3", "100013-4"], descripcion: "simulador para practicas de ventilación con presión positiva y compresiones torácicas", kind: "SIMULADOR" },
+  { nombre: "DEA ENTRENAMIENTO LAERDAL", placas: ["196355", "196356", "196357", "167504", "157861", "157865", "157862", "157863"], descripcion: "simular desfibrilación externa adultos, niños y lactantes", kind: "EQUIPO" },
+  { nombre: "SIMULADOR OVACE ADULTO", placas: ["167548-1"], descripcion: "para maniobra de desobstrucción de vía aérea", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR OVACE ADOLECENTE", placas: ["167548-2"], descripcion: "para maniobra de desobstrucción de vía aérea", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR OVACE NIñO", placas: ["167548-3"], descripcion: "para maniobra de desobstrucción de vía aérea", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR OVACE BEBE", placas: ["167548-4"], descripcion: "para maniobra de desobstrucción de vía aérea", kind: "SIMULADOR" },
+  { nombre: "BABY ANNE", placas: ["157859-1", "157859-2", "157859-3", "157859-4", "157860-1", "157860-2", "157860-3", "157860-4"], descripcion: "simulador lactante para rcp y OVACE", kind: "SIMULADOR" },
+  { nombre: "CAMILLA", placas: ["122040", "122041", "122042", "122043"], descripcion: "CAMILLA adulto sencilla / CAMILLA pediátrica sencilla", kind: "EQUIPO" },
+  { nombre: "BOTIQUIN TRUAMA AVANZADO", placas: ["LS001", "LS002", "LS003"], descripcion: "Botiquín Negro y verde grande con elementos para manejo avanzado de trauma", kind: "EQUIPO" },
+  { nombre: "SIMNA 3G", placas: ["157739-1"], descripcion: "simulador cuerpo completo para soporte vital avanzado", kind: "SIMULADOR" },
+  { nombre: "COMPUTADOR TODO EN 1", placas: ["157739-2", "157738-2", "157740-3"], descripcion: "Monitoreo signos vitales", kind: "EQUIPO" },
+  { nombre: "PORTATIL", placas: ["157739-3", "157738-5", "157740-4"], descripcion: "Pc instructor manejo simulador", kind: "EQUIPO" },
+  { nombre: "CAMARA WEB", placas: ["157739-4", "157738-4", "157740-5"], descripcion: "para grabación de examen", kind: "EQUIPO" },
+  { nombre: "MICROFONO DIADEMA", placas: ["157739-5", "157740-6"], descripcion: "para el instructor hablar por el simulador", kind: "EQUIPO" },
+  { nombre: "SIMNEWB (SIMULADOR NEONATO)", placas: ["157738-1"], descripcion: "Simulador neonato para soporte vital avanzado neonatal", kind: "SIMULADOR" },
+  { nombre: "SIMPAD", placas: ["157738-3"], descripcion: "Pc instructor manejo simulador", kind: "EQUIPO" },
+  { nombre: "SIMMOM (SIMULADOR MATERNO FETAL)", placas: ["157740-1"], descripcion: "Simulador avanzado para parto , código rojo y urgencias ginecológicas", kind: "SIMULADOR" },
+  { nombre: "BEBE SIMMOM", placas: ["157740-2"], descripcion: "bebe simom para parto", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR PARA TRAUMA Y EXTRICACION", placas: ["134632"], descripcion: "Simulador cuerpo completo para manejo del trauma y vía aérea", kind: "SIMULADOR" },
+  { nombre: "TABLA DE INMOVILIZACIÓN BAXSTRAP", placas: ["167544", "167545", "167546", "167547"], descripcion: "Tabla rígida para inmovilización de cuerpo completo con arnés de sujeción y bloqueadores laterales", kind: "EQUIPO" },
+  { nombre: "SIMULADOR SIMMAN", placas: ["137684", "137685"], descripcion: "simulador SimMan básico para soporte vital avanzado", kind: "SIMULADOR" },
+  { nombre: "NEONATO PARA REANIMACIÓN NEWBORN ANNE", placas: ["157776", "157777", "157858-1", "157858-2"], descripcion: "Neonato para reanimación , manejo vía aérea y cateterismo umbilical", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR \"PRIMEROS AUXILIOS CUERPO COMPLETO\"", placas: ["18732", "18733", "18734", "18735", "18736", "18737"], descripcion: "Simulador cuerpo completo para manejo del trauma y reanimación", kind: "SIMULADOR" },
+  { nombre: "CILINDRO OXIGENO", placas: ["134571-2", "152471", "167055"], descripcion: "practicas oxigenoterapia", kind: "EQUIPO" },
+  { nombre: "CARRO DE PARO", placas: ["188260", "134571-1"], descripcion: "Para practica de manejo del paciente en urgencias", kind: "EQUIPO" },
+  { nombre: "SIMULADOR SIMBABY", placas: ["184917-1"], descripcion: "Simulador avanzado lactante", kind: "SIMULADOR" },
+  { nombre: "COMPUTADOR TODO EN UNO HP", placas: ["184917-2"], descripcion: "pc para monitoreo de signos vitales", kind: "EQUIPO" },
+  { nombre: "COMPUTADOR PORTATIL HP", placas: ["184917-3"], descripcion: "pc para controlar simulador", kind: "EQUIPO" },
+  { nombre: "CAJA DE CONTROL LIMBOX", placas: ["184917-4"], descripcion: "caja de conexión y enlace entre equipos", kind: "EQUIPO" },
+  { nombre: "COMPRESOR", placas: ["184917-5"], descripcion: "para generar aire de respiración y movimientos", kind: "EQUIPO" },
+  { nombre: "CARDIO DESFIBRILADOR MANUAL", placas: ["188250", "188251", "188252", "188253"], descripcion: "Desfibrilador real para uso en simuladores", kind: "EQUIPO" },
+  { nombre: "ENTRENADOR RCP/VIAS RESPIRATORIAS ADULTO", placas: ["189205", "189885"], descripcion: "Cabaza de intubación adulto para manejo avanzado", kind: "SIMULADOR" },
+  { nombre: "ENTRENADOR VIAS RESPIRATORIAS/RCP MULTIPROPOSITO", placas: ["189886"], descripcion: "Cabaza de intubación adulto para manejo avanzado", kind: "SIMULADOR" },
+  { nombre: "MEGACODE KELLY KIT ADVANCED", placas: ["134629"], descripcion: "Simulador pediátrico para monitoreo y manejo de vía aérea", kind: "SIMULADOR" },
+  { nombre: "LAERDAL NEONATAL INTUBATION TRAINER", placas: ["157774", "157775"], descripcion: "Cabeza para intubacion neonatal", kind: "SIMULADOR" },
+  { nombre: "CABEZAS DE INTUBACION LACTANTES", placas: ["190352", "190353"], descripcion: "Cabeza para intubacion en lactantes", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR DE CRICOTIROIDOTOMIA", placas: ["167511"], descripcion: "para realizar practicas de cricotiroidotomia", kind: "SIMULADOR" },
+  { nombre: "TORSO VIA AEREA PEDIATRICO", placas: ["167508", "167509"], descripcion: "Cabeza para intubacion pediatrica", kind: "SIMULADOR" },
+  { nombre: "TORSO VIA AEREA ADULTO", placas: ["167506"], descripcion: "Cabeza para intubacion en adultos", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR OVACE - ADULTO", placas: ["161769", "161770"], descripcion: "para maniobra de desobstrucción de vía aérea", kind: "SIMULADOR" },
+  { nombre: "SIMULADOR DE \"PUNCIÓN INTRAÓSEA\"", placas: ["167513", "146769"], descripcion: "Acceso intraoseo lactante / Acceso intraoseo pediatrico", kind: "SIMULADOR" },
+];
 function normalizarTexto(s: string): string {
   return s
     .toLowerCase()
@@ -32,6 +82,24 @@ function normalizarTexto(s: string): string {
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+function normalizarClave(s: string): string {
+  return normalizarTexto(s).replace(/-/g, " ").replace(/\s+/g, " ").trim();
+}
+function parsePlacas(raw?: string | null): string[] {
+  if (!raw) return [];
+  const vistas = new Set<string>();
+  const out: string[] = [];
+  for (const parte of raw.split(/[,;\n]+/)) {
+    const p = parte.trim();
+    if (!p) continue;
+    const key = p.toUpperCase();
+    if (!vistas.has(key)) {
+      vistas.add(key);
+      out.push(p);
+    }
+  }
+  return out;
 }
 function comprimirRepetidas(s: string): string {
   return s.replace(/(.)\1+/g, "$1");
@@ -71,7 +139,6 @@ function evaluarCoincidencia(query: string, r: Row): { score: number; exacta: bo
   if (tokens.length > 1 && tokens.every((t) => todo.includes(t))) {
     return { score: 82, exacta: true };
   }
-  // Búsqueda aproximada por similitud ortográfica (errores de tipeo / letras omitidas o duplicadas)
   const palabrasObjetivo = Array.from(new Set(todo.split(" ").filter(Boolean)));
   let sumaSimilitud = 0;
   let tokensCoincidentes = 0;
@@ -115,6 +182,8 @@ function evaluarCoincidencia(query: string, r: Row): { score: number; exacta: bo
 function Page() {
   const [textoBusqueda, setTextoBusqueda] = useState("");
   const [filtroAplicado, setFiltroAplicado] = useState("");
+  const [editandoPlacaId, setEditandoPlacaId] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -160,8 +229,128 @@ function Page() {
     const { error } = await supabase.from("resources").update(patch).eq("id", id);
     if (error) toast.error(error.message);
     else {
-      toast.success("Estado actualizado");
+      toast.success("Inventario actualizado");
       q.refetch();
+    }
+  };
+  const sincronizarDesdeExcel = async () => {
+    setSincronizando(true);
+    try {
+      const [{ data: existentes, error: errRes }, { data: cats, error: errCat }] = await Promise.all([
+        supabase.from("resources").select("id, name, code, numero_inventario, descripcion, quantity_total, category_id"),
+        supabase.from("resource_categories").select("id, kind, name"),
+      ]);
+      if (errRes) throw errRes;
+      if (errCat) throw errCat;
+      const catSimulador = (cats ?? []).find((c) => c.kind === "SIMULADOR")?.id ?? (cats ?? [])[0]?.id;
+      const catEquipo = (cats ?? []).find((c) => c.kind === "EQUIPO")?.id ?? catSimulador;
+      if (!catSimulador) {
+        toast.error("No hay categorías de recursos configuradas en la base de datos.");
+        return;
+      }
+      const listaActual = [...(existentes ?? [])];
+      const placasGlobales = new Set<string>();
+      for (const r of listaActual) {
+        for (const p of parsePlacas(r.numero_inventario)) {
+          placasGlobales.add(p.toUpperCase());
+        }
+      }
+      let actualizados = 0;
+      let creados = 0;
+      let sinCambios = 0;
+      for (const item of INVENTARIO_EXCEL) {
+        const claveExcel = normalizarClave(item.nombre);
+        const placasSetExcel = new Set(item.placas.map((p) => p.toUpperCase()));
+        // 1. Buscar coincidencia por alguna placa ya asignada o por nombre normalizado
+        let match = listaActual.find((r) => {
+          const placasReg = parsePlacas(r.numero_inventario);
+          return placasReg.some((p) => placasSetExcel.has(p.toUpperCase()));
+        });
+        if (!match) {
+          match = listaActual.find((r) => normalizarClave(r.name) === claveExcel);
+        }
+        if (match) {
+          const placasActuales = parsePlacas(match.numero_inventario);
+          const placasActualesUpper = new Set(placasActuales.map((p) => p.toUpperCase()));
+          const nuevasPlacas = [...placasActuales];
+          let agregoPlaca = false;
+          for (const p of item.placas) {
+            const up = p.toUpperCase();
+            if (!placasActualesUpper.has(up) && !placasGlobales.has(up)) {
+              nuevasPlacas.push(p);
+              placasActualesUpper.add(up);
+              placasGlobales.add(up);
+              agregoPlaca = true;
+            }
+          }
+          const nuevoInvStr = nuevasPlacas.join(", ");
+          const nuevaDesc = (match.descripcion ?? "").trim() ? match.descripcion : item.descripcion;
+          const nuevaCant = Math.max(Number(match.quantity_total ?? 0), nuevasPlacas.length);
+          const cambioInv = nuevoInvStr !== (match.numero_inventario ?? "").trim();
+          const cambioDesc = (nuevaDesc ?? "") !== (match.descripcion ?? "");
+          const cambioCant = nuevaCant !== Number(match.quantity_total ?? 0);
+          if (agregoPlaca || cambioInv || cambioDesc || cambioCant) {
+            const { error } = await supabase
+              .from("resources")
+              .update({
+                numero_inventario: nuevoInvStr || null,
+                descripcion: nuevaDesc || null,
+                quantity_total: nuevaCant,
+              })
+              .eq("id", match.id);
+            if (error) throw error;
+            match.numero_inventario = nuevoInvStr;
+            match.descripcion = nuevaDesc;
+            match.quantity_total = nuevaCant;
+            actualizados++;
+          } else {
+            sinCambios++;
+          }
+        } else {
+          // 2. Crear nuevo elemento solo con placas que no existan previamente en otro registro
+          const placasParaCrear: string[] = [];
+          for (const p of item.placas) {
+            const up = p.toUpperCase();
+            if (!placasGlobales.has(up)) {
+              placasParaCrear.push(p);
+              placasGlobales.add(up);
+            }
+          }
+          if (placasParaCrear.length === 0) {
+            sinCambios++;
+            continue;
+          }
+          const payload = {
+            name: item.nombre,
+            category_id: item.kind === "SIMULADOR" ? catSimulador : catEquipo!,
+            numero_inventario: placasParaCrear.join(", "),
+            code: placasParaCrear[0] ?? null,
+            descripcion: item.descripcion || null,
+            quantity_total: placasParaCrear.length,
+            maintenance_quantity: 0,
+            out_of_service_quantity: 0,
+            status: "DISPONIBLE" as const,
+            allows_external_exit: true,
+          };
+          const { data: insertado, error } = await supabase
+            .from("resources")
+            .insert(payload)
+            .select("id, name, code, numero_inventario, descripcion, quantity_total, category_id")
+            .single();
+          if (error) throw error;
+          if (insertado) listaActual.push(insertado);
+          creados++;
+        }
+      }
+      toast.success(
+        `Sincronización completada: ${actualizados} actualizado(s), ${creados} nuevo(s), ${sinCambios} sin cambios.`
+      );
+      q.refetch();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "No se pudo sincronizar el inventario.";
+      toast.error(msg);
+    } finally {
+      setSincronizando(false);
     }
   };
   const { recursosFiltrados, esAproximado } = useMemo(() => {
@@ -234,40 +423,53 @@ function Page() {
           <TabsTrigger value="chequeo">Lista de chequeo</TabsTrigger>
         </TabsList>
         <TabsContent value="recursos" className="space-y-3">
-          <form onSubmit={ejecutarBusqueda} className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[240px] max-w-md">
-              <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
-                value={textoBusqueda}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setTextoBusqueda(val);
-                  if (!val.trim()) setFiltroAplicado("");
-                }}
-                placeholder="Buscar recurso, insumo, descripción o placa..."
-                className="pl-9 pr-8 bg-background"
-              />
-              {textoBusqueda && (
-                <button
-                  type="button"
-                  onClick={limpiarBusqueda}
-                  aria-label="Limpiar búsqueda"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <Button type="submit" size="sm">
-              <Search className="h-4 w-4 mr-1.5" />
-              Buscar
-            </Button>
-            {filtroAplicado && (
-              <Button type="button" size="sm" variant="outline" onClick={limpiarBusqueda}>
-                Ver todos
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <form onSubmit={ejecutarBusqueda} className="flex flex-wrap items-center gap-2 flex-1">
+              <div className="relative flex-1 min-w-[240px] max-w-md">
+                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Input
+                  value={textoBusqueda}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTextoBusqueda(val);
+                    if (!val.trim()) setFiltroAplicado("");
+                  }}
+                  placeholder="Buscar recurso, insumo, descripción o placa..."
+                  className="pl-9 pr-8 bg-background"
+                />
+                {textoBusqueda && (
+                  <button
+                    type="button"
+                    onClick={limpiarBusqueda}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button type="submit" size="sm">
+                <Search className="h-4 w-4 mr-1.5" />
+                Buscar
               </Button>
-            )}
-          </form>
+              {filtroAplicado && (
+                <Button type="button" size="sm" variant="outline" onClick={limpiarBusqueda}>
+                  Ver todos
+                </Button>
+              )}
+            </form>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={sincronizando}
+              onClick={sincronizarDesdeExcel}
+              title="Cargar y actualizar placas del Excel sin duplicar registros existentes"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+              {sincronizando ? "Sincronizando..." : "Sincronizar placas Excel"}
+            </Button>
+          </div>
           {filtroAplicado && (
             <p className="text-xs text-muted-foreground">
               {recursosFiltrados.length === 0
@@ -295,7 +497,7 @@ function Page() {
                 <TableHeader className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
                   <TableRow className="hover:bg-muted">
                     <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Recurso</TableHead>
-                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">N° inventario</TableHead>
+                    <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">NÓ inventario / Placas</TableHead>
                     <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Descripción</TableHead>
                     <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap">Tipo</TableHead>
                     <TableHead className="bg-muted font-semibold text-foreground whitespace-nowrap text-right">Total</TableHead>
@@ -320,6 +522,8 @@ function Page() {
                     const disp = bloqueado
                       ? 0
                       : Math.max(0, r.quantity_total - r.maintenance_quantity - r.out_of_service_quantity - res);
+                    const placas = parsePlacas(r.numero_inventario);
+                    const editandoEstaPlaca = editandoPlacaId === r.id;
                     const num = (k: "maintenance_quantity" | "out_of_service_quantity") => (
                       <Input
                         type="number"
@@ -341,22 +545,58 @@ function Page() {
                             <span className="ml-2 text-xs text-muted-foreground">(sale de la Facultad)</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Input
-                            defaultValue={r.numero_inventario ?? ""}
-                            placeholder="Placa / serial"
-                            className="h-8 w-28 text-xs"
-                            onBlur={(e) => {
-                              const v = e.target.value.trim();
-                              if (v !== (r.numero_inventario ?? "")) cambiar(r.id, { numero_inventario: v });
-                            }}
-                          />
+                        <TableCell className="min-w-[200px] max-w-[260px]">
+                          {editandoEstaPlaca ? (
+                            <Input
+                              autoFocus
+                              defaultValue={r.numero_inventario ?? ""}
+                              placeholder="Placas separadas por coma"
+                              className="h-8 w-full text-xs"
+                              onBlur={(e) => {
+                                const limpio = parsePlacas(e.target.value).join(", ");
+                                setEditandoPlacaId(null);
+                                if (limpio !== (r.numero_inventario ?? "").trim()) {
+                                  cambiar(r.id, { numero_inventario: limpio });
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                if (e.key === "Escape") setEditandoPlacaId(null);
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-start justify-between gap-1.5">
+                              <div className="flex flex-wrap gap-1">
+                                {placas.length > 0 ? (
+                                  placas.map((pl) => (
+                                    <span
+                                      key={pl}
+                                      className="inline-flex items-center rounded border bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+                                    >
+                                      {pl}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-xs italic text-muted-foreground">Sin placa</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditandoPlacaId(r.id)}
+                                title="Editar placas"
+                                aria-label="Editar placas"
+                                className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Input
                             defaultValue={r.descripcion ?? ""}
                             placeholder="Descripción"
-                            className="h-8 w-44 text-xs"
+                            className="h-8 w-48 text-xs"
                             onBlur={(e) => {
                               const v = e.target.value.trim();
                               if (v !== (r.descripcion ?? "")) cambiar(r.id, { descripcion: v });
