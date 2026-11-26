@@ -193,6 +193,64 @@ function evaluarCoincidencia(query: string, r: Row): { score: number; exacta: bo
   const promedio = sumaSimilitud / tokens.length;
   return { score: Number((promedio * cobertura * 75).toFixed(2)), exacta: false };
 }
+type UnidadEstadoConfig = {
+  estado: "MANTENIMIENTO" | "FUERA_DE_SERVICIO";
+  motivo: string;
+  fecha?: string;
+};
+type MapaEstadosPlaca = Record<string, UnidadEstadoConfig>;
+const MARCA_ESTADOS_PLACA = "[[ESTADOS_PLACA:";
+function extraerDescripcionYEstados(rawDesc?: string | null): {
+  descripcionLimpia: string;
+  estadosPlaca: MapaEstadosPlaca;
+} {
+  const txt = String(rawDesc ?? "");
+  const idx = txt.indexOf(MARCA_ESTADOS_PLACA);
+  if (idx === -1) {
+    return { descripcionLimpia: txt.trim(), estadosPlaca: {} };
+  }
+  const descLimpia = txt.slice(0, idx).trim();
+  const resto = txt.slice(idx + MARCA_ESTADOS_PLACA.length);
+  const endIdx = resto.lastIndexOf("]]");
+  const jsonStr = endIdx >= 0 ? resto.slice(0, endIdx) : resto;
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { descripcionLimpia: descLimpia, estadosPlaca: parsed as MapaEstadosPlaca };
+    }
+  } catch {
+    // ignorar si estaba malformado
+  }
+  return { descripcionLimpia: descLimpia, estadosPlaca: {} };
+}
+function serializarDescripcionYEstados(descripcionLimpia: string, estadosPlaca: MapaEstadosPlaca): string | null {
+  const base = descripcionLimpia.trim();
+  const entradas = Object.entries(estadosPlaca).filter(
+    ([, cfg]) => cfg && (cfg.estado === "MANTENIMIENTO" || cfg.estado === "FUERA_DE_SERVICIO")
+  );
+  if (entradas.length === 0) return base || null;
+  const objLimpio: MapaEstadosPlaca = {};
+  for (const [k, v] of entradas) {
+    objLimpio[k] = {
+      estado: v.estado,
+      motivo: String(v.motivo ?? "").trim(),
+      fecha: v.fecha || new Date().toISOString().slice(0, 10),
+    };
+  }
+  const tag = `${MARCA_ESTADOS_PLACA}${JSON.stringify(objLimpio)}]]`;
+  return base ? `${base}\n${tag}` : tag;
+}
+function formatearFechaLocalInput(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function formatearHoraLocalInput(d: Date): string {
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 type CambioPlacaItem = {
   indice: number;
   anterior: string;
@@ -459,17 +517,19 @@ function Page() {
     }
   };
   const abrirModalDescripcion = (r: Row) => {
+    const { descripcionLimpia } = extraerDescripcionYEstados(r.descripcion);
     setRecursoDescModal(r);
-    setTextoDescModal(r.descripcion ?? "");
+    setTextoDescModal(descripcionLimpia);
   };
   const guardarDescripcionModal = async () => {
     if (!recursoDescModal) return;
     setGuardandoDesc(true);
     try {
-      const limpia = textoDescModal.trim();
+      const { estadosPlaca } = extraerDescripcionYEstados(recursoDescModal.descripcion);
+      const nuevaDescSerializada = serializarDescripcionYEstados(textoDescModal, estadosPlaca);
       const { error } = await supabase
         .from("resources")
-        .update({ descripcion: limpia || null })
+        .update({ descripcion: nuevaDescSerializada })
         .eq("id", recursoDescModal.id);
       if (error) throw error;
       toast.success("Descripción actualizada");
@@ -479,6 +539,75 @@ function Page() {
       toast.error(e instanceof Error ? e.message : "No se pudo guardar la descripción");
     } finally {
       setGuardandoDesc(false);
+    }
+  };
+  const abrirModalMantenimientoPlacas = (r: Row) => {
+    const { estadosPlaca } = extraerDescripcionYEstados(r.descripcion);
+    const placasReg = parsePlacas(r.numero_inventario);
+    const totalUnidades = Math.max(Number(r.quantity_total ?? 0), placasReg.length, 1);
+    const copia: MapaEstadosPlaca = { ...estadosPlaca };
+    // Si habia cantidades historicas sin placa asociada, pre-asignarlas a las primeras unidades libres para mantener coherencia
+    const mantRegistradas = Object.values(copia).filter((v) => v.estado === "MANTENIMIENTO").length;
+    const fueraRegistradas = Object.values(copia).filter((v) => v.estado === "FUERA_DE_SERVICIO").length;
+    let faltanMant = Math.max(0, Number(r.maintenance_quantity ?? 0) - mantRegistradas);
+    let faltanFuera = Math.max(0, Number(r.out_of_service_quantity ?? 0) - fueraRegistradas);
+    for (let idx = 0; idx < totalUnidades && (faltanMant > 0 || faltanFuera > 0); idx++) {
+      const clave = placasReg[idx] ? placasReg[idx] : `SIN_PLACA_${idx + 1}`;
+      if (!copia[clave]) {
+        if (faltanMant > 0) {
+          copia[clave] = { estado: "MANTENIMIENTO", motivo: "En mantenimiento" };
+          faltanMant--;
+        } else if (faltanFuera > 0) {
+          copia[clave] = { estado: "FUERA_DE_SERVICIO", motivo: "Fuera de servicio" };
+          faltanFuera--;
+        }
+      }
+    }
+    setRecursoMantModal(r);
+    setDraftEstadosPlaca(copia);
+  };
+  const guardarEstadosPorPlaca = async () => {
+    if (!recursoMantModal) return;
+    setGuardandoEstadosPlaca(true);
+    try {
+      const { descripcionLimpia } = extraerDescripcionYEstados(recursoMantModal.descripcion);
+      const placasReg = parsePlacas(recursoMantModal.numero_inventario);
+      const totalUnidades = Math.max(Number(recursoMantModal.quantity_total ?? 0), placasReg.length, 1);
+      const clavesValidas = new Set<string>();
+      for (let idx = 0; idx < totalUnidades; idx++) {
+        clavesValidas.add(placasReg[idx] ? placasReg[idx] : `SIN_PLACA_${idx + 1}`);
+      }
+      const filtrado: MapaEstadosPlaca = {};
+      let mantCount = 0;
+      let fueraCount = 0;
+      for (const [clave, cfg] of Object.entries(draftEstadosPlaca)) {
+        if (!clavesValidas.has(clave)) continue;
+        if (cfg.estado === "MANTENIMIENTO") {
+          mantCount++;
+          filtrado[clave] = cfg;
+        } else if (cfg.estado === "FUERA_DE_SERVICIO") {
+          fueraCount++;
+          filtrado[clave] = cfg;
+        }
+      }
+      const nuevaDesc = serializarDescripcionYEstados(descripcionLimpia, filtrado);
+      const { error } = await supabase
+        .from("resources")
+        .update({
+          maintenance_quantity: mantCount,
+          out_of_service_quantity: fueraCount,
+          status: "DISPONIBLE",
+          descripcion: nuevaDesc,
+        })
+        .eq("id", recursoMantModal.id);
+      if (error) throw error;
+      toast.success("Estados por placa actualizados en el inventario");
+      setRecursoMantModal(null);
+      q.refetch();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "No se pudieron guardar los estados por placa");
+    } finally {
+      setGuardandoEstadosPlaca(false);
     }
   };
   const sincronizarDesdeExcel = async () => {
@@ -758,27 +887,39 @@ function Page() {
                       </TableRow>
                     )}
                     {recursosFiltrados.map((r: Row) => {
-                      const res = q.data?.reservados[r.id] ?? 0;
-                      const bloqueado = r.status !== "DISPONIBLE";
+                      const res = reservadosCalculados[r.id] ?? 0;
+                      const { descripcionLimpia, estadosPlaca } = extraerDescripcionYEstados(r.descripcion);
+                      const placas = parsePlacas(r.numero_inventario);
+                      const mantPorPlaca = Object.values(estadosPlaca).filter((v) => v.estado === "MANTENIMIENTO").length;
+                      const fueraPorPlaca = Object.values(estadosPlaca).filter((v) => v.estado === "FUERA_DE_SERVICIO").length;
+                      const mantReal = Math.max(Number(r.maintenance_quantity ?? 0), mantPorPlaca);
+                      const fueraReal = Math.max(Number(r.out_of_service_quantity ?? 0), fueraPorPlaca);
+                      const bloqueado = r.status === "FUERA_DE_SERVICIO";
                       const disp = bloqueado
                         ? 0
-                        : Math.max(0, r.quantity_total - r.maintenance_quantity - r.out_of_service_quantity - res);
-                      const placas = parsePlacas(r.numero_inventario);
+                        : Math.max(0, r.quantity_total - mantReal - fueraReal - res);
                       const nombreMostrar = corregirNombreTorso(String(r.name ?? ""));
-                      const descTexto = String(r.descripcion ?? "").trim();
-                      const num = (k: "maintenance_quantity" | "out_of_service_quantity") => (
-                        <Input
-                          type="number"
-                          min={0}
-                          max={r.quantity_total}
-                          defaultValue={r[k]}
-                          className="h-8 w-20"
-                          onBlur={(e) => {
-                            const v = Math.max(0, +e.target.value || 0);
-                            if (v !== r[k]) cambiar(r.id, { [k]: v });
-                          }}
-                        />
-                      );
+                      const descTexto = descripcionLimpia;
+                      const num = (k: "maintenance_quantity" | "out_of_service_quantity") => {
+                        const cantActual = k === "maintenance_quantity" ? mantReal : fueraReal;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => abrirModalMantenimientoPlacas(r)}
+                            title="Seleccionar qué placa(s) entran o salen de este estado"
+                            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-xs font-medium transition-colors hover:bg-muted ${
+                              cantActual > 0
+                                ? k === "maintenance_quantity"
+                                  ? "border-orange-300 bg-orange-50 text-orange-900"
+                                  : "border-red-300 bg-red-50 text-red-900"
+                                : "border-input bg-background text-foreground"
+                            }`}
+                          >
+                            <span>{cantActual}</span>
+                            <Pencil className="h-3 w-3 opacity-70" />
+                          </button>
+                        );
+                      };
                       return (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium">
@@ -1128,9 +1269,12 @@ function Page() {
               const rModal = recursoEstadosModal;
               const placasReg = parsePlacas(rModal.numero_inventario);
               const totalUnidades = Math.max(Number(rModal.quantity_total ?? 0), placasReg.length, 1);
-              const usos = (q.data?.usosPorRecurso?.[rModal.id] ?? []) as Row[];
-              const mantCount = Math.max(0, Number(rModal.maintenance_quantity ?? 0));
-              const fueraCount = Math.max(0, Number(rModal.out_of_service_quantity ?? 0));
+              const usos = (usosPorRecursoCalculados[rModal.id] ?? []) as Row[];
+              const { estadosPlaca: estadosPlacaModal } = extraerDescripcionYEstados(rModal.descripcion);
+              const mantPorPlacaModal = Object.values(estadosPlacaModal).filter((v) => v.estado === "MANTENIMIENTO").length;
+              const fueraPorPlacaModal = Object.values(estadosPlacaModal).filter((v) => v.estado === "FUERA_DE_SERVICIO").length;
+              const mantCount = Math.max(0, Number(rModal.maintenance_quantity ?? 0) - mantPorPlacaModal);
+              const fueraCount = Math.max(0, Number(rModal.out_of_service_quantity ?? 0) - fueraPorPlacaModal);
               type FilaEstadoUnidad = {
                 placa: string;
                 estado: "En préstamo externo" | "En uso (Laboratorio)" | "En mantenimiento" | "Fuera de servicio" | "Disponible";
@@ -1174,7 +1318,31 @@ function Page() {
               let fueraRestante = fueraCount;
               for (let idx = 0; idx < totalUnidades; idx++) {
                 const placaUnidad = placasReg[idx] ? placasReg[idx] : "---";
+                const claveEstadoUnidad = placasReg[idx] ? placasReg[idx] : `SIN_PLACA_${idx + 1}`;
+                const configEspecifica = estadosPlacaModal[claveEstadoUnidad];
                 const placaUpper = placaUnidad.toUpperCase();
+                if (configEspecifica?.estado === "MANTENIMIENTO") {
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: "En mantenimiento",
+                    badgeClass: "bg-orange-100 text-orange-900 border-orange-300",
+                    detalle: configEspecifica.motivo
+                      ? `Motivo: ${configEspecifica.motivo}${configEspecifica.fecha ? ` (desde ${configEspecifica.fecha})` : ""}`
+                      : "Unidad reportada en mantenimiento en inventario.",
+                  });
+                  continue;
+                }
+                if (configEspecifica?.estado === "FUERA_DE_SERVICIO") {
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: "Fuera de servicio",
+                    badgeClass: "bg-red-100 text-red-900 border-red-300",
+                    detalle: configEspecifica.motivo
+                      ? `Motivo: ${configEspecifica.motivo}${configEspecifica.fecha ? ` (desde ${configEspecifica.fecha})` : ""}`
+                      : "Unidad marcada fuera de servicio.",
+                  });
+                  continue;
+                }
                 const idxUsoPlaca =
                   placaUnidad !== "---"
                     ? usosPendientesPorPlaca.findIndex(
@@ -1286,6 +1454,109 @@ function Page() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setRecursoEstadosModal(null)}>
                 Cerrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Modal de Mantenimiento / Fuera de servicio por placa */}
+        <Dialog open={Boolean(recursoMantModal)} onOpenChange={(open) => !open && !guardandoEstadosPlaca && setRecursoMantModal(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Mantenimiento y fuera de servicio por placa · {recursoMantModal ? corregirNombreTorso(String(recursoMantModal.name ?? "")) : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Selecciona exactamente qué unidad/placa pasa a Mantenimiento o Fuera de servicio, o regrésala a Disponible. Las placas marcadas aquí quedarán bloqueadas en préstamos y reservas.
+              </DialogDescription>
+            </DialogHeader>
+            {recursoMantModal && (() => {
+              const placasReg = parsePlacas(recursoMantModal.numero_inventario);
+              const totalUnidades = Math.max(Number(recursoMantModal.quantity_total ?? 0), placasReg.length, 1);
+              return (
+                <div className="space-y-3">
+                  <div className="max-h-80 overflow-auto rounded-lg border">
+                    <Table>
+                      <TableHeader className="bg-muted sticky top-0">
+                        <TableRow>
+                          <TableHead className="w-14 text-xs">#</TableHead>
+                          <TableHead className="w-36 text-xs">Placa / Inventario</TableHead>
+                          <TableHead className="w-44 text-xs">Estado operativo</TableHead>
+                          <TableHead className="text-xs">Causa / Observación</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Array.from({ length: totalUnidades }).map((_, idx) => {
+                          const placaMostrar = placasReg[idx] ? placasReg[idx] : "---";
+                          const clave = placasReg[idx] ? placasReg[idx] : `SIN_PLACA_${idx + 1}`;
+                          const cfg = draftEstadosPlaca[clave];
+                          const estadoActual = cfg?.estado ?? "DISPONIBLE";
+                          return (
+                            <TableRow key={clave}>
+                              <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell className="font-mono text-xs font-semibold">{placaMostrar}</TableCell>
+                              <TableCell>
+                                <select
+                                  className="border rounded-md h-8 px-2 text-xs bg-background text-foreground w-full"
+                                  value={estadoActual}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDraftEstadosPlaca((prev) => {
+                                      const next = { ...prev };
+                                      if (val === "DISPONIBLE") {
+                                        delete next[clave];
+                                      } else {
+                                        next[clave] = {
+                                          estado: val as "MANTENIMIENTO" | "FUERA_DE_SERVICIO",
+                                          motivo: prev[clave]?.motivo ?? "",
+                                          fecha: prev[clave]?.fecha ?? formatearFechaLocalInput(new Date()),
+                                        };
+                                      }
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <option value="DISPONIBLE">Disponible</option>
+                                  <option value="MANTENIMIENTO">En mantenimiento</option>
+                                  <option value="FUERA_DE_SERVICIO">Fuera de servicio</option>
+                                </select>
+                              </TableCell>
+                              <TableCell>
+                                {estadoActual === "DISPONIBLE" ? (
+                                  <span className="text-xs text-muted-foreground italic">Operativa para préstamos y prácticas</span>
+                                ) : (
+                                  <Input
+                                    value={cfg?.motivo ?? ""}
+                                    onChange={(e) => {
+                                      const motivoVal = e.target.value;
+                                      setDraftEstadosPlaca((prev) => ({
+                                        ...prev,
+                                        [clave]: {
+                                          estado: estadoActual as "MANTENIMIENTO" | "FUERA_DE_SERVICIO",
+                                          motivo: motivoVal,
+                                          fecha: prev[clave]?.fecha ?? formatearFechaLocalInput(new Date()),
+                                        },
+                                      }));
+                                    }}
+                                    placeholder="Ej. Falla en sensor de compresión / En revisión técnica"
+                                    className="h-8 text-xs"
+                                  />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              );
+            })()}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={guardandoEstadosPlaca} onClick={() => setRecursoMantModal(null)}>
+                Cancelar
+              </Button>
+              <Button type="button" disabled={guardandoEstadosPlaca} onClick={guardarEstadosPorPlaca}>
+                {guardandoEstadosPlaca ? "Guardando..." : "Guardar estados por placa"}
               </Button>
             </DialogFooter>
           </DialogContent>

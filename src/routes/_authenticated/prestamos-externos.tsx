@@ -685,7 +685,41 @@ function Page() {
     </div>
   );
 }
+type InfoBloqueoPlaca = {
+  bloqueada: boolean;
+  razon: string;
+};
+function extraerMapaBloqueosInventario(rawDesc?: string | null): Record<string, InfoBloqueoPlaca> {
+  const txt = String(rawDesc ?? "");
+  const marca = "[[ESTADOS_PLACA:";
+  const idx = txt.indexOf(marca);
+  if (idx === -1) return {};
+  const resto = txt.slice(idx + marca.length);
+  const endIdx = resto.lastIndexOf("]]");
+  const jsonStr = endIdx >= 0 ? resto.slice(0, endIdx) : resto;
+  try {
+    const parsed = JSON.parse(jsonStr) as Record<string, { estado?: string; motivo?: string }>;
+    const out: Record<string, InfoBloqueoPlaca> = {};
+    for (const [placa, cfg] of Object.entries(parsed ?? {})) {
+      if (cfg?.estado === "MANTENIMIENTO") {
+        out[placa.toUpperCase()] = {
+          bloqueada: true,
+          razon: `En mantenimiento${cfg.motivo ? `: ${cfg.motivo}` : ""}`,
+        };
+      } else if (cfg?.estado === "FUERA_DE_SERVICIO") {
+        out[placa.toUpperCase()] = {
+          bloqueada: true,
+          razon: `Fuera de servicio${cfg.motivo ? `: ${cfg.motivo}` : ""}`,
+        };
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 type ItemSalida = {
+  resourceId?: string;
   cantidad: number;
   descripcion: string;
   numero_inventario: string;
@@ -748,13 +782,16 @@ function ModalGestionPrestamoExterno({
     observaciones: limpiarCampoNull(form?.observaciones),
   });
   const [items, setItems] = useState<ItemSalida[]>(() => {
-    const construirItem = (cantidad: number, descripcion: string, rawInv?: string | null): ItemSalida => {
+    const construirItem = (cantidad: number, descripcion: string, rawInv?: string | null, recObj?: Row): ItemSalida => {
       const cant = Math.max(1, Number(cantidad) || 1);
       const disp = parsePlacasDisponibles(rawInv);
+      const bloqueosMant = extraerMapaBloqueosInventario(recObj?.descripcion);
+      const operativas = disp.filter((pl) => !bloqueosMant[pl.toUpperCase()]?.bloqueada);
       const elegidas = disp.length > 0
-        ? Array.from({ length: cant }, (_, idx) => disp[idx] ?? disp[0] ?? "")
+        ? Array.from({ length: cant }, (_, idx) => operativas[idx] ?? "")
         : [];
       return {
+        resourceId: recObj?.id,
         cantidad: cant,
         descripcion,
         numero_inventario: disp.length > 0 ? elegidas.filter(Boolean).join(", ") : limpiarCampoNull(rawInv),
@@ -767,7 +804,7 @@ function ModalGestionPrestamoExterno({
         const recMatch = recursos.find(
           (rc: Row) => String(rc.name ?? "").trim().toLowerCase() === String(it.descripcion ?? "").trim().toLowerCase()
         );
-        return construirItem(it.cantidad ?? 1, it.descripcion ?? "", recMatch?.numero_inventario ?? it.numero_inventario);
+        return construirItem(it.cantidad ?? 1, it.descripcion ?? "", recMatch?.numero_inventario ?? it.numero_inventario, recMatch);
       });
     }
     const deReserva = (r.reservation_resources ?? []).map((x: Row) => {
@@ -776,7 +813,8 @@ function ModalGestionPrestamoExterno({
       return construirItem(
         x.cantidad_aprobada ?? x.quantity ?? 1,
         x.resources?.name ?? recMatch?.name ?? "",
-        recMatch?.numero_inventario ?? x.resources?.numero_inventario
+        recMatch?.numero_inventario ?? x.resources?.numero_inventario,
+        recMatch
       );
     });
     if (deReserva.length > 0) return deReserva;
@@ -784,7 +822,7 @@ function ModalGestionPrestamoExterno({
       return form.inventory_detail
         .split("\n")
         .filter((l: string) => l.trim())
-        .map((l: string) => construirItem(1, l.trim(), ""));
+        .map((l: string) => construirItem(1, l.trim(), "", undefined));
     }
     return [];
   });
@@ -1009,21 +1047,61 @@ function ModalGestionPrestamoExterno({
                               Selecciona la placa / N° de inventario a prestar ({disp.length} disponible(s)):
                             </span>
                             <div className="grid gap-1 sm:grid-cols-2">
-                              {Array.from({ length: it.cantidad }).map((_, uIdx) => (
-                                <select
-                                  key={uIdx}
-                                  className={inp}
-                                  value={elegidas[uIdx] ?? ""}
-                                  onChange={(e) => seleccionarPlacaUnidad(uIdx, e.target.value)}
-                                >
-                                  <option value="">Selecciona placa #{uIdx + 1}…</option>
-                                  {disp.map((pl) => (
-                                    <option key={pl} value={pl}>
-                                      {it.cantidad > 1 ? `Unidad #${uIdx + 1}: ${pl}` : `Placa: ${pl}`}
-                                    </option>
-                                  ))}
-                                </select>
-                              ))}
+                              {Array.from({ length: it.cantidad }).map((_, uIdx) => {
+                                const recAsociado = recursos.find(
+                                  (rc: Row) =>
+                                    rc.id === it.resourceId ||
+                                    String(rc.name ?? "").trim().toLowerCase() === String(it.descripcion ?? "").trim().toLowerCase()
+                                );
+                                const bloqueosMant = extraerMapaBloqueosInventario(recAsociado?.descripcion);
+                                const solIniMs = new Date(ini).getTime();
+                                const solFinMs = new Date(fin).getTime();
+                                const prestamosCruzados = (recAsociado?.id ? ocupacionPorRecurso[recAsociado.id]?.prestamos ?? [] : []).filter(
+                                  (p: Row) => {
+                                    if (p.reservation.id === r.id) return false;
+                                    const pIni = new Date(p.inicio).getTime();
+                                    const pFin = new Date(p.fin).getTime();
+                                    return pIni < solFinMs && pFin > solIniMs;
+                                  }
+                                );
+                                const placasOcupadasHorario = new Set<string>();
+                                for (const pc of prestamosCruzados) {
+                                  const fPc = getForm(pc.reservation);
+                                  if (Array.isArray(fPc?.items)) {
+                                    for (const itPc of fPc.items) {
+                                      for (const plPc of parsePlacasDisponibles(itPc?.numero_inventario)) {
+                                        placasOcupadasHorario.add(plPc.toUpperCase());
+                                      }
+                                    }
+                                  }
+                                }
+                                return (
+                                  <select
+                                    key={uIdx}
+                                    className={inp}
+                                    value={elegidas[uIdx] ?? ""}
+                                    onChange={(e) => seleccionarPlacaUnidad(uIdx, e.target.value)}
+                                  >
+                                    <option value="">Selecciona placa #{uIdx + 1}…</option>
+                                    {disp.map((pl) => {
+                                      const plUp = pl.toUpperCase();
+                                      const bloqMant = bloqueosMant[plUp];
+                                      const bloqHorario = placasOcupadasHorario.has(plUp);
+                                      const deshabilitada = Boolean(bloqMant?.bloqueada || bloqHorario);
+                                      const etiquetaEstado = bloqMant?.bloqueada
+                                        ? ` [BLOQUEADA · ${bloqMant.razon}]`
+                                        : bloqHorario
+                                          ? " [BLOQUEADA · Reservada en este horario]"
+                                          : "";
+                                      return (
+                                        <option key={pl} value={pl} disabled={deshabilitada}>
+                                          {it.cantidad > 1 ? `Unidad #${uIdx + 1}: ${pl}` : `Placa: ${pl}`}{etiquetaEstado}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                );
+                              })}
                             </div>
                           </div>
                         ) : (
