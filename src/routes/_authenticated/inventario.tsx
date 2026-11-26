@@ -1113,6 +1113,183 @@ function Page() {
           </DialogContent>
         </Dialog>
       </div>
+        {/* Modal de resumen de estados por placa (solo lectura) */}
+        <Dialog open={Boolean(recursoEstadosModal)} onOpenChange={(open) => !open && setRecursoEstadosModal(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                Resumen de estados · {recursoEstadosModal ? corregirNombreTorso(String(recursoEstadosModal.name ?? "")) : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Vista de consulta (solo lectura) del estado actual y responsable asociado a cada placa o unidad del recurso.
+              </DialogDescription>
+            </DialogHeader>
+            {recursoEstadosModal && (() => {
+              const rModal = recursoEstadosModal;
+              const placasReg = parsePlacas(rModal.numero_inventario);
+              const totalUnidades = Math.max(Number(rModal.quantity_total ?? 0), placasReg.length, 1);
+              const usos = (q.data?.usosPorRecurso?.[rModal.id] ?? []) as Row[];
+              const mantCount = Math.max(0, Number(rModal.maintenance_quantity ?? 0));
+              const fueraCount = Math.max(0, Number(rModal.out_of_service_quantity ?? 0));
+              type FilaEstadoUnidad = {
+                placa: string;
+                estado: "En préstamo externo" | "En uso (Laboratorio)" | "En mantenimiento" | "Fuera de servicio" | "Disponible";
+                badgeClass: string;
+                detalle: string;
+              };
+              const filas: FilaEstadoUnidad[] = [];
+              const placasUsadasSet = new Set<string>();
+              const usosPendientesPorPlaca: { uso: Row; placa: string }[] = [];
+              const usosSinPlacaEspecifica: Row[] = [];
+              for (const u of usos) {
+                const pAsig: string[] = Array.isArray(u.placasAsignadas) ? u.placasAsignadas : [];
+                if (pAsig.length > 0) {
+                  for (let k = 0; k < u.cantidad; k++) {
+                    const pl = pAsig[k] ?? pAsig[0];
+                    if (pl) {
+                      usosPendientesPorPlaca.push({ uso: u, placa: pl });
+                    } else {
+                      usosSinPlacaEspecifica.push({ ...u, cantidad: 1 });
+                    }
+                  }
+                } else {
+                  for (let k = 0; k < u.cantidad; k++) {
+                    usosSinPlacaEspecifica.push({ ...u, cantidad: 1 });
+                  }
+                }
+              }
+              const formatearFechaCorta = (isoStr?: string) => {
+                if (!isoStr) return "";
+                const dObj = new Date(isoStr);
+                if (Number.isNaN(dObj.getTime())) return "";
+                return dObj.toLocaleString("es-CO", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              };
+              let mantRestante = mantCount;
+              let fueraRestante = fueraCount;
+              for (let idx = 0; idx < totalUnidades; idx++) {
+                const placaUnidad = placasReg[idx] ? placasReg[idx] : "---";
+                const placaUpper = placaUnidad.toUpperCase();
+                const idxUsoPlaca =
+                  placaUnidad !== "---"
+                    ? usosPendientesPorPlaca.findIndex(
+                        (item) => item.placa.toUpperCase() === placaUpper && !placasUsadasSet.has(`${idx}-${placaUpper}`)
+                      )
+                    : -1;
+                if (idxUsoPlaca >= 0) {
+                  const [{ uso }] = usosPendientesPorPlaca.splice(idxUsoPlaca, 1);
+                  placasUsadasSet.add(`${idx}-${placaUpper}`);
+                  const rango = `${formatearFechaCorta(uso.inicio)} → ${formatearFechaCorta(uso.fin)}`;
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: uso.esExterno ? "En préstamo externo" : "En uso (Laboratorio)",
+                    badgeClass: uso.esExterno
+                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                      : "bg-blue-100 text-blue-900 border-blue-300",
+                    detalle: `${uso.esExterno ? "Prestado a" : "En uso por"}: ${uso.quien} · Lugar: ${uso.destino} (${rango})`,
+                  });
+                  continue;
+                }
+                if (usosSinPlacaEspecifica.length > 0) {
+                  const uso = usosSinPlacaEspecifica.shift()!;
+                  const rango = `${formatearFechaCorta(uso.inicio)} → ${formatearFechaCorta(uso.fin)}`;
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: uso.esExterno ? "En préstamo externo" : "En uso (Laboratorio)",
+                    badgeClass: uso.esExterno
+                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                      : "bg-blue-100 text-blue-900 border-blue-300",
+                    detalle: `${uso.esExterno ? "Prestado a" : "En uso por"}: ${uso.quien} · Lugar: ${uso.destino} (${rango})`,
+                  });
+                  continue;
+                }
+                if (mantRestante > 0) {
+                  mantRestante--;
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: "En mantenimiento",
+                    badgeClass: "bg-orange-100 text-orange-900 border-orange-300",
+                    detalle: "Unidad reportada en mantenimiento preventivo/correctivo en inventario.",
+                  });
+                  continue;
+                }
+                if (fueraRestante > 0 || rModal.status === "FUERA_DE_SERVICIO") {
+                  if (fueraRestante > 0) fueraRestante--;
+                  filas.push({
+                    placa: placaUnidad,
+                    estado: "Fuera de servicio",
+                    badgeClass: "bg-red-100 text-red-900 border-red-300",
+                    detalle: "Unidad marcada fuera de servicio (no disponible para préstamos ni prácticas).",
+                  });
+                  continue;
+                }
+                filas.push({
+                  placa: placaUnidad,
+                  estado: "Disponible",
+                  badgeClass: "bg-emerald-100 text-emerald-900 border-emerald-300",
+                  detalle: "Disponible en el Laboratorio de Simulación.",
+                });
+              }
+              return (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-md border bg-muted/50 px-2.5 py-1">
+                      Total unidades: <strong>{totalUnidades}</strong>
+                    </span>
+                    <span className="rounded-md border bg-emerald-50 text-emerald-900 px-2.5 py-1">
+                      Disponibles: <strong>{filas.filter((f) => f.estado === "Disponible").length}</strong>
+                    </span>
+                    <span className="rounded-md border bg-amber-50 text-amber-900 px-2.5 py-1">
+                      En uso / prestados: <strong>{filas.filter((f) => f.estado.startsWith("En préstamo") || f.estado.startsWith("En uso")).length}</strong>
+                    </span>
+                    <span className="rounded-md border bg-orange-50 text-orange-900 px-2.5 py-1">
+                      Mantenimiento: <strong>{filas.filter((f) => f.estado === "En mantenimiento").length}</strong>
+                    </span>
+                    <span className="rounded-md border bg-red-50 text-red-900 px-2.5 py-1">
+                      Fuera de servicio: <strong>{filas.filter((f) => f.estado === "Fuera de servicio").length}</strong>
+                    </span>
+                  </div>
+                  <div className="max-h-80 overflow-auto rounded-lg border">
+                    <Table>
+                      <TableHeader className="bg-muted sticky top-0">
+                        <TableRow>
+                          <TableHead className="w-16 text-xs font-semibold">#</TableHead>
+                          <TableHead className="w-40 text-xs font-semibold">N° Inventario / Placa</TableHead>
+                          <TableHead className="w-44 text-xs font-semibold">Estado actual</TableHead>
+                          <TableHead className="text-xs font-semibold">Responsable / Causa / Detalle</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filas.map((f, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                            <TableCell className="font-mono text-xs font-semibold">{f.placa}</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${f.badgeClass}`}>
+                                {f.estado}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-foreground">{f.detalle}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              );
+            })()}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRecursoEstadosModal(null)}>
+                Cerrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </TooltipProvider>
   );
 }
