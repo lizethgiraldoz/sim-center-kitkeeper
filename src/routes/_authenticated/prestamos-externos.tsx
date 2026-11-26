@@ -659,7 +659,33 @@ function Page() {
     </div>
   );
 }
-type ItemSalida = { cantidad: number; descripcion: string; numero_inventario: string };
+type ItemSalida = {
+  cantidad: number;
+  descripcion: string;
+  numero_inventario: string;
+  placasDisponibles?: string[];
+  placasElegidas?: string[];
+};
+function parsePlacasDisponibles(raw?: string | null): string[] {
+  if (!raw) return [];
+  const vistas = new Set<string>();
+  const out: string[] = [];
+  for (const parte of String(raw).split(/[,;\n]+/)) {
+    const p = parte.trim();
+    if (!p || p.toLowerCase() === "null") continue;
+    const k = p.toUpperCase();
+    if (!vistas.has(k)) {
+      vistas.add(k);
+      out.push(p);
+    }
+  }
+  return out;
+}
+function limpiarCampoNull(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  const s = String(val).trim();
+  return s.toLowerCase() === "null" ? "" : s;
+}
 function ModalGestionPrestamoExterno({
   r,
   recursos,
@@ -679,27 +705,52 @@ function ModalGestionPrestamoExterno({
   const ini = form?.departure_at ?? r.starts_at;
   const fin = form?.return_at ?? r.ends_at;
   const temp = infoTemporal(ini, fin, r.salida_estado);
-  const pendiente = r.status === "SOLICITADA" && form?.estado !== "SALIDA_APROBADA" && form?.estado !== "SALIDA_RECHAZADA";
+  const pendiente = r.status === "SOLICITADA" || form?.estado === "PENDIENTE_AUTORIZACION_SALIDA";
   const [autoriza, setAutoriza] = useState({
-    nombre: form?.autoriza_nombre ?? "",
-    cargo: form?.autoriza_cargo ?? "",
-    telefono: form?.autoriza_telefono ?? "",
-    correo: form?.autoriza_correo ?? "",
-    observaciones: form?.observaciones ?? "",
+    nombre: limpiarCampoNull(form?.autoriza_nombre),
+    cargo: limpiarCampoNull(form?.autoriza_cargo),
+    telefono: limpiarCampoNull(form?.autoriza_telefono),
+    correo: limpiarCampoNull(form?.autoriza_correo),
+    observaciones: limpiarCampoNull(form?.observaciones),
   });
   const [items, setItems] = useState<ItemSalida[]>(() => {
-    if (Array.isArray(form?.items) && form.items.length > 0) return form.items;
-    const deReserva = (r.reservation_resources ?? []).map((x: Row) => ({
-      cantidad: x.cantidad_aprobada ?? x.quantity ?? 1,
-      descripcion: x.resources?.name ?? "",
-      numero_inventario: x.resources?.numero_inventario ?? "",
-    }));
+    const construirItem = (cantidad: number, descripcion: string, rawInv?: string | null): ItemSalida => {
+      const cant = Math.max(1, Number(cantidad) || 1);
+      const disp = parsePlacasDisponibles(rawInv);
+      const elegidas = disp.length > 0
+        ? Array.from({ length: cant }, (_, idx) => disp[idx] ?? disp[0] ?? "")
+        : [];
+      return {
+        cantidad: cant,
+        descripcion,
+        numero_inventario: disp.length > 0 ? elegidas.filter(Boolean).join(", ") : limpiarCampoNull(rawInv),
+        placasDisponibles: disp,
+        placasElegidas: elegidas,
+      };
+    };
+    if (Array.isArray(form?.items) && form.items.length > 0) {
+      return form.items.map((it: Row) => {
+        const recMatch = recursos.find(
+          (rc: Row) => String(rc.name ?? "").trim().toLowerCase() === String(it.descripcion ?? "").trim().toLowerCase()
+        );
+        return construirItem(it.cantidad ?? 1, it.descripcion ?? "", recMatch?.numero_inventario ?? it.numero_inventario);
+      });
+    }
+    const deReserva = (r.reservation_resources ?? []).map((x: Row) => {
+      const rid = x.resource_id ?? x.resources?.id;
+      const recMatch = recursos.find((rc: Row) => rc.id === rid);
+      return construirItem(
+        x.cantidad_aprobada ?? x.quantity ?? 1,
+        x.resources?.name ?? recMatch?.name ?? "",
+        recMatch?.numero_inventario ?? x.resources?.numero_inventario
+      );
+    });
     if (deReserva.length > 0) return deReserva;
     if (form?.inventory_detail?.trim()) {
       return form.inventory_detail
         .split("\n")
         .filter((l: string) => l.trim())
-        .map((l: string) => ({ cantidad: 1, descripcion: l.trim(), numero_inventario: "" }));
+        .map((l: string) => construirItem(1, l.trim(), ""));
     }
     return [];
   });
@@ -733,11 +784,16 @@ function ModalGestionPrestamoExterno({
       return;
     }
     setBusy(true);
+        const itemsLimpios = items.map(({ cantidad, descripcion, numero_inventario }) => ({
+      cantidad,
+      descripcion,
+      numero_inventario,
+    }));
     const { error } = await supabase.rpc("aprobar_prestamo_externo", {
       _reservation_id: r.id,
       _form_id: form?.id,
       _autoriza: autoriza,
-      _items: items,
+      _items: itemsLimpios,
     });
     if (error) {
       setBusy(false);
@@ -877,14 +933,76 @@ function ModalGestionPrestamoExterno({
                   </div>
                 </div>
                 <p className="font-semibold pt-1">Elementos autorizados y placa de inventario:</p>
-                <div className="space-y-1">
-                  {items.map((it, i) => (
-                    <div key={i} className="grid grid-cols-[48px_1fr_105px] gap-1 items-center">
-                      <Input className={inp} type="number" min={1} value={it.cantidad} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, cantidad: Math.max(1, +e.target.value || 1) } : x))} />
-                      <Input className={inp} value={it.descripcion} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, descripcion: e.target.value } : x))} />
-                      <Input className={inp} placeholder="N° inventario" value={it.numero_inventario} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, numero_inventario: e.target.value } : x))} />
-                    </div>
-                  ))}
+                                <div className="space-y-2">
+                  {items.map((it, i) => {
+                    const disp = it.placasDisponibles ?? [];
+                    const elegidas = it.placasElegidas ?? [];
+                    const actualizarCantidad = (nuevaCantRaw: string) => {
+                      const nuevaCant = Math.max(1, +nuevaCantRaw || 1);
+                      setItems(items.map((x, j) => {
+                        if (j !== i) return x;
+                        if (disp.length === 0) return { ...x, cantidad: nuevaCant };
+                        const sigElegidas = Array.from({ length: nuevaCant }, (_, uIdx) => elegidas[uIdx] ?? disp[uIdx] ?? disp[0] ?? "");
+                        return {
+                          ...x,
+                          cantidad: nuevaCant,
+                          placasElegidas: sigElegidas,
+                          numero_inventario: sigElegidas.filter(Boolean).join(", "),
+                        };
+                      }));
+                    };
+                    const seleccionarPlacaUnidad = (uIdx: number, placaVal: string) => {
+                      setItems(items.map((x, j) => {
+                        if (j !== i) return x;
+                        const sigElegidas = [...(x.placasElegidas ?? [])];
+                        sigElegidas[uIdx] = placaVal;
+                        return {
+                          ...x,
+                          placasElegidas: sigElegidas,
+                          numero_inventario: sigElegidas.filter(Boolean).join(", "),
+                        };
+                      }));
+                    };
+                    return (
+                      <div key={i} className="rounded-lg border bg-background/80 p-2 space-y-1.5">
+                        <div className="grid grid-cols-[54px_1fr] gap-1.5 items-center">
+                          <Input className={inp} type="number" min={1} value={it.cantidad} onChange={(e) => actualizarCantidad(e.target.value)} />
+                          <Input className={inp} value={it.descripcion} onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, descripcion: e.target.value } : x))} />
+                        </div>
+                        {disp.length > 0 ? (
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-medium text-muted-foreground block">
+                              Selecciona la placa / N° de inventario a prestar ({disp.length} disponible(s)):
+                            </span>
+                            <div className="grid gap-1 sm:grid-cols-2">
+                              {Array.from({ length: it.cantidad }).map((_, uIdx) => (
+                                <select
+                                  key={uIdx}
+                                  className={inp}
+                                  value={elegidas[uIdx] ?? ""}
+                                  onChange={(e) => seleccionarPlacaUnidad(uIdx, e.target.value)}
+                                >
+                                  <option value="">Selecciona placa #{uIdx + 1}…</option>
+                                  {disp.map((pl) => (
+                                    <option key={pl} value={pl}>
+                                      {it.cantidad > 1 ? `Unidad #${uIdx + 1}: ${pl}` : `Placa: ${pl}`}
+                                    </option>
+                                  ))}
+                                </select>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <Input
+                            className={inp}
+                            placeholder="N° inventario / placa (opcional)"
+                            value={it.numero_inventario}
+                            onChange={(e) => setItems(items.map((x, j) => j === i ? { ...x, numero_inventario: e.target.value } : x))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <Textarea
                   className="text-xs min-h-14"

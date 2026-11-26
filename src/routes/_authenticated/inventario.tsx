@@ -676,17 +676,7 @@ function Page() {
                   </Button>
                 )}
               </form>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={sincronizando}
-                onClick={sincronizarDesdeExcel}
-                title="Cargar y actualizar placas del Excel sin duplicar registros existentes"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-                {sincronizando ? "Sincronizando..." : "Sincronizar placas Excel"}
-              </Button>
+              
             </div>
             {filtroAplicado && (
               <p className="text-xs text-muted-foreground">

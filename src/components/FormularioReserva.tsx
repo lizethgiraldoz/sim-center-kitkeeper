@@ -598,14 +598,13 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               )}
               {prestamoItems.length > 0 && (
                 <div className="border rounded-xl bg-background divide-y overflow-hidden">
-                  <div className="grid grid-cols-[64px_1fr_150px_40px] gap-2 px-3 py-1.5 text-xs font-semibold bg-muted">
+                  <div className="grid grid-cols-[64px_1fr_40px] gap-2 px-3 py-1.5 text-xs font-semibold bg-muted">
                     <span>Cant.</span>
                     <span>Elemento</span>
-                    <span>N° Inventario / Placa</span>
                     <span />
                   </div>
                   {prestamoItems.map((it, idx) => (
-                    <div key={idx} className="grid grid-cols-[64px_1fr_150px_40px] gap-2 px-3 py-1.5 items-center text-xs">
+                    <div key={idx} className="grid grid-cols-[64px_1fr_40px] gap-2 px-3 py-1.5 items-center text-xs">
                       <span className="font-semibold">{it.cantidad}</span>
                       <span className="min-w-0 break-words">
                         {it.descripcion}
@@ -615,7 +614,6 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
                           </span>
                         )}
                       </span>
-                      <span className="text-muted-foreground truncate">{formatearSeriales(it.numero_inventario, it.cantidad) || "—"}</span>
                       <Button
                         type="button"
                         size="icon"
