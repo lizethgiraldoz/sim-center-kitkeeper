@@ -201,7 +201,8 @@ const EXT0 = {
 };
 export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; activities: Row[]; onDone: (msg: string) => void }) {
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  const manana = new Date(Date.now() + 86400000);
+  const rawManana = new Date(Date.now() + 86400000);
+  const manana = rawManana.getDay() === 0 ? new Date(rawManana.getTime() + 86400000) : rawManana;
   const [h, setH] = useState({
     facultad_entidad: "Facultad de Medicina", programa: "Medicina", semestre: "13", participants: 20, telefono_contacto: "",
     solicitante_nombre: "", solicitante_documento: "", docente_responsable_nombre: "", docente_responsable_documento: "",
@@ -338,6 +339,10 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
         setErr("Completa destino, persona autorizada a sacar el bien y vehículo / transporte.");
         return;
       }
+      if (salidaDate.getDay() === 0 || retornoDate.getDay() === 0) {
+        setErr("Los domingos el laboratorio no opera. Selecciona fechas de lunes a sábado.");
+        return;
+      }
       if (salidaDate < hoy) {
         setErr("La fecha de salida no puede estar en el pasado.");
         return;
@@ -394,6 +399,7 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
       return;
     }
     if (d.date < hoy) { setErr("No se pueden solicitar reservas en fechas pasadas."); return; }
+    if (d.date.getDay() === 0) { setErr("Los domingos el laboratorio no opera. Selecciona otro día."); return; }
     if (d.end > "19:00") { setErr("El horario solicitado supera el límite operativo permitido (19:00 hrs). Requiere autorización especial."); return; }
     if (sinStock.length) { setErr(`El recurso ${sinStock[0]?.detalle} no tiene unidades disponibles en la fecha seleccionada debido a mantenimiento o fuera de servicio.`); return; }
     const f = {
@@ -738,7 +744,18 @@ export function FormularioReserva({ activities, onDone }: { spaces?: Row[]; acti
               <p className="text-xs text-muted-foreground">La primera sesión es la fecha y hora de arriba. Agrega las demás sesiones con la fecha y el horario que necesites.</p>
               {extras.map((x, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2">
-                  <Input type="date" className="w-40" min={format(hoy, "yyyy-MM-dd")} value={x.fecha} onChange={(e) => setExtras(extras.map((y, j) => j === i ? { ...y, fecha: e.target.value } : y))} />
+                  <Input type="date" className="w-40" min={format(hoy, "yyyy-MM-dd")} value={x.fecha} onChange={(e) => {
+  const val = e.target.value;
+  if (val) {
+    const dCheck = new Date(`${val}T12:00:00-05:00`);
+    if (dCheck.getDay() === 0) {
+      setErr("Los domingos el laboratorio no opera. Selecciona un día entre lunes y sábado.");
+      return;
+    }
+  }
+  setErr("");
+  setExtras(extras.map((y, j) => j === i ? { ...y, fecha: val } : y));
+}} />
                   <div className="w-28"><RelojHora value={x.inicio} onChange={(v) => setExtras(extras.map((y, j) => j === i ? { ...y, inicio: v } : y))} /></div>
                   a
                   <div className="w-28"><RelojHora value={x.fin} onChange={(v) => setExtras(extras.map((y, j) => j === i ? { ...y, fin: v } : y))} /></div>

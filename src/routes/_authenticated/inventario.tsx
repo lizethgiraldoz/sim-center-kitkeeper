@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, FileSpreadsheet, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, FileSpreadsheet, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EstadoBadge } from "@/components/EstadoBadge";
 import { ListaChequeo } from "@/components/FormularioReserva";
-import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RelojHora } from "@/components/RelojHora";import { SoloAdmin, Titulo } from "@/components/SoloAdmin";
 import type { Row } from "@/lib/app-data";
 export const Route = createFileRoute("/_authenticated/inventario")({
   head: () => ({ meta: [{ title: "Inventario y quirófano · Laboratorio de Simulación UdeA" }] }),
@@ -277,12 +281,13 @@ function Page() {
   const [draftEstadosPlaca, setDraftEstadosPlaca] = useState<MapaEstadosPlaca>({});
   const [guardandoEstadosPlaca, setGuardandoEstadosPlaca] = useState(false);
   const [modoTiempoReal, setModoTiempoReal] = useState(true);
-  const [fechaConsulta, setFechaConsulta] = useState<string>(() => formatearFechaLocalInput(new Date()));
-  const [horaInicioConsulta, setHoraInicioConsulta] = useState<string>(() => formatearHoraLocalInput(new Date()));
-  const [horaFinConsulta, setHoraFinConsulta] = useState<string>(() => {
-    const fin = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    return formatearHoraLocalInput(fin);
+  const [fechaConsulta, setFechaConsulta] = useState<string>(() => {
+    const hoy = new Date();
+    const base = hoy.getDay() === 0 ? new Date(hoy.getTime() + 86400000) : hoy;
+    return formatearFechaLocalInput(base);
   });
+  const [horaInicioConsulta, setHoraInicioConsulta] = useState<string>("08:00");
+  const [horaFinConsulta, setHoraFinConsulta] = useState<string>("12:00");
   const topScrollRef = useRef<HTMLDivElement>(null);
   const topInnerRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -903,39 +908,62 @@ function Page() {
                   type="button"
                   size="sm"
                   variant={modoTiempoReal ? "default" : "outline"}
-                  className="h-7 px-2.5 text-xs"
+                  className="h-8 px-2.5 text-xs"
                   onClick={() => setModoTiempoReal(true)}
                 >
                   Ahora
                 </Button>
-                <Input
-                  type="date"
-                  value={fechaConsulta}
-                  onChange={(e) => {
-                    setFechaConsulta(e.target.value);
-                    setModoTiempoReal(false);
-                  }}
-                  className="h-7 w-36 bg-background text-xs px-2"
-                />
-                <Input
-                  type="time"
-                  value={horaInicioConsulta}
-                  onChange={(e) => {
-                    setHoraInicioConsulta(e.target.value);
-                    setModoTiempoReal(false);
-                  }}
-                  className="h-7 w-24 bg-background text-xs px-2"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={!modoTiempoReal ? "secondary" : "outline"}
+                      className="h-8 justify-start gap-1.5 px-2.5 text-xs font-normal"
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {fechaConsulta
+                          ? format(new Date(`${fechaConsulta}T12:00:00`), "PPP", { locale: es })
+                          : "Elegir fecha"}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+                    <Calendar
+                      mode="single"
+                      locale={es}
+                      selected={fechaConsulta ? new Date(`${fechaConsulta}T12:00:00`) : undefined}
+                      onSelect={(day) => {
+                        if (!day) return;
+                        setFechaConsulta(formatearFechaLocalInput(day));
+                        setModoTiempoReal(false);
+                      }}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="w-28">
+                  <RelojHora
+                    value={horaInicioConsulta}
+                    onChange={(v) => {
+                      setHoraInicioConsulta(v);
+                      setModoTiempoReal(false);
+                    }}
+                    className="h-8 text-xs px-2.5"
+                  />
+                </div>
                 <span className="text-muted-foreground">a</span>
-                <Input
-                  type="time"
-                  value={horaFinConsulta}
-                  onChange={(e) => {
-                    setHoraFinConsulta(e.target.value);
-                    setModoTiempoReal(false);
-                  }}
-                  className="h-7 w-24 bg-background text-xs px-2"
-                />
+                <div className="w-28">
+                  <RelojHora
+                    value={horaFinConsulta}
+                    onChange={(v) => {
+                      setHoraFinConsulta(v);
+                      setModoTiempoReal(false);
+                    }}
+                    className="h-8 text-xs px-2.5"
+                  />
+                </div>
               </div>
             </div>
             {!modoTiempoReal && (
