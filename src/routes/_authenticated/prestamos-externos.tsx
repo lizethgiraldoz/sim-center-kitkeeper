@@ -207,7 +207,7 @@ function Page() {
     for (const r of q.data?.activas ?? []) {
       if (r.salida_estado === "RETORNADO") continue;
       const finCheckMs = new Date(String((r as Row).ends_at ?? "")).getTime();
-      if (!Number.isNaN(finCheckMs) && finCheckMs <= nowMs) continue;
+      if (!Number.isNaN(finCheckMs) && finCheckMs <= Date.now()) continue;
 
       const form = getForm(r);
       const ini = form?.departure_at ?? r.starts_at;
